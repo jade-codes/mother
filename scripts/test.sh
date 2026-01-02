@@ -1,9 +1,9 @@
 #!/bin/bash
-# Test script for remember
+# Test script for mother
 
 set -e
 
-echo "=== Remember Test Script ==="
+echo "=== mother Test Script ==="
 
 # Check if Neo4j is running
 if ! docker ps | grep -q neo4j; then
@@ -26,7 +26,7 @@ echo "Scanning this repository..."
 cargo run -- scan . \
   --neo4j-uri bolt://localhost:7687 \
   --neo4j-user neo4j \
-  --neo4j-password remember_dev_password \
+  --neo4j-password mother_dev_password \
   --version "test-$(date +%Y%m%d-%H%M%S)"
 
 echo "=== Done ==="

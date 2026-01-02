@@ -1,5 +1,5 @@
 {
-  "name": "remember",
+  "name": "mother",
   "image": "mcr.microsoft.com/devcontainers/rust:1-bookworm",
   "features": {
     "ghcr.io/devcontainers/features/github-cli:1": {

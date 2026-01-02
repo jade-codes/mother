@@ -1,4 +1,4 @@
-//! remember-core: Core library for AST graph ingestion via LSP
+//! mother-core: Core library for AST graph ingestion via LSP
 //!
 //! This library uses Language Server Protocol to extract rich semantic
 //! information from codebases, including fully resolved types, references,

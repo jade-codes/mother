@@ -3,12 +3,12 @@
 use std::path::Path;
 
 use anyhow::Result;
-use remember_core::graph::convert::convert_symbols;
-use remember_core::graph::model::SymbolNode;
-use remember_core::graph::neo4j::{Neo4jClient, Neo4jConfig};
-use remember_core::lsp::LspServerManager;
-use remember_core::scanner::{Scanner, compute_file_hash};
-use remember_core::version::ScanRun;
+use mother_core::graph::convert::convert_symbols;
+use mother_core::graph::model::SymbolNode;
+use mother_core::graph::neo4j::{Neo4jClient, Neo4jConfig};
+use mother_core::lsp::LspServerManager;
+use mother_core::scanner::{Scanner, compute_file_hash};
+use mother_core::version::ScanRun;
 use tracing::info;
 
 /// Run the scan command
@@ -76,7 +76,7 @@ pub async fn run(
         path: std::path::PathBuf,
         file_uri: String,
         content_hash: String,
-        language: remember_core::scanner::Language,
+        language: mother_core::scanner::Language,
     }
 
     let mut files_to_process: Vec<FileToProcess> = Vec::new();
@@ -290,17 +290,17 @@ pub async fn run(
 
 /// Collect position info from LSP symbols, matching them to graph nodes by name order
 fn collect_symbol_positions(
-    lsp_symbols: &[remember_core::lsp::LspSymbol],
+    lsp_symbols: &[mother_core::lsp::LspSymbol],
     graph_symbols: &[SymbolNode],
     file_uri: &str,
-    language: remember_core::scanner::Language,
+    language: mother_core::scanner::Language,
     out: &mut Vec<SymbolInfo>,
 ) {
     // The graph_symbols are flattened in the same order as LSP symbols traversal
     // We'll flatten LSP symbols to match
     fn flatten_lsp(
-        symbols: &[remember_core::lsp::LspSymbol],
-    ) -> Vec<&remember_core::lsp::LspSymbol> {
+        symbols: &[mother_core::lsp::LspSymbol],
+    ) -> Vec<&mother_core::lsp::LspSymbol> {
         let mut result = Vec::new();
         for sym in symbols {
             result.push(sym);
@@ -328,5 +328,5 @@ struct SymbolInfo {
     file_uri: String,
     start_line: u32,
     start_col: u32,
-    language: remember_core::scanner::Language,
+    language: mother_core::scanner::Language,
 }

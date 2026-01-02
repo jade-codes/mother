@@ -1,5 +1,5 @@
 [package]
-name = "remember-core"
+name = "mother-core"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true

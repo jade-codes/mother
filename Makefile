@@ -95,7 +95,7 @@ watch:
 
 # Install the binary
 install:
-	cargo install --path crates/remember-cli
+	cargo install --path crates/mother-cli
 
 # Lint test file naming convention
 # - Test files must be in tests/ directories

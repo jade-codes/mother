@@ -1,5 +1,5 @@
 [workspace]
-members = ["crates/remember-core", "crates/remember-cli"]
+members = ["crates/mother-core", "crates/mother-cli"]
 resolver = "2"
 
 [workspace.package]
@@ -7,7 +7,7 @@ version = "0.1.0"
 edition = "2024"
 authors = ["jade-codes"]
 license = "MIT"
-repository = "https://github.com/jade-codes/remember"
+repository = "https://github.com/jade-codes/mother"
 description = "Semantic graph ingestion system via LSP"
 
 [workspace.dependencies]

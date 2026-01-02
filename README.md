@@ -1,4 +1,4 @@
-# Remember: Semantic Graph Ingestion System
+# mother: Semantic Graph Ingestion System
 
 A tool that uses Language Server Protocol to extract rich semantic information from codebases, storing them in a Neo4j graph database with versioned runs for meaningful analysis.
 
@@ -14,7 +14,7 @@ A tool that uses Language Server Protocol to extract rich semantic information f
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
-│                           remember                                   │
+│                           mother                                   │
 ├─────────────────────────────────────────────────────────────────────┤
 │  ┌──────────────┐    ┌─────────────────────────────────────────────┐│
 │  │   Scanner    │───▶│              LSP Client                     ││
@@ -42,15 +42,15 @@ A tool that uses Language Server Protocol to extract rich semantic information f
 ## Project Structure
 
 ```
-remember/
+mother/
 ├── crates/
-│   ├── remember-core/          # Core library
+│   ├── mother-core/          # Core library
 │   │   └── src/
 │   │       ├── scanner/        # File discovery
 │   │       ├── lsp/            # LSP client & server manager
 │   │       ├── graph/          # Graph model & Neo4j storage
 │   │       └── version/        # Versioning logic
-│   └── remember-cli/           # CLI application
+│   └── mother-cli/           # CLI application
 │       └── src/
 │           └── main.rs
 ├── .github/workflows/          # CI/CD
@@ -61,19 +61,19 @@ remember/
 
 ```bash
 # Scan a repository and store in Neo4j
-remember scan /path/to/repo \
+mother scan /path/to/repo \
   --neo4j-uri bolt://localhost:7687 \
   --neo4j-user neo4j \
   --neo4j-password secret
 
 # Scan with explicit version tag
-remember scan /path/to/repo --version "v1.2.0"
+mother scan /path/to/repo --version "v1.2.0"
 
 # Compare two versions
-remember diff --from v1.0.0 --to v1.2.0
+mother diff --from v1.0.0 --to v1.2.0
 
 # Query the graph
-remember query "MATCH (s:Symbol {kind: 'function'}) RETURN s.name LIMIT 10"
+mother query "MATCH (s:Symbol {kind: 'function'}) RETURN s.name LIMIT 10"
 ```
 
 ## Development

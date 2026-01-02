@@ -1,18 +1,18 @@
 [package]
-name = "remember-cli"
+name = "mother-cli"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
 license.workspace = true
 repository.workspace = true
-description = "CLI for the remember AST graph ingestion tool"
+description = "CLI for the mother AST graph ingestion tool"
 
 [[bin]]
-name = "remember"
+name = "mother"
 path = "src/main.rs"
 
 [dependencies]
-remember-core = { path = "../remember-core" }
+mother-core = { path = "../mother-core" }
 clap.workspace = true
 tokio.workspace = true
 tracing.workspace = true

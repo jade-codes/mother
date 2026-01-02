@@ -1,4 +1,4 @@
-//! remember-cli: CLI for AST graph ingestion
+//! mother-cli: CLI for AST graph ingestion
 
 use clap::{Parser, Subcommand};
 use tracing_subscriber::{EnvFilter, fmt, prelude::*};
@@ -6,7 +6,7 @@ use tracing_subscriber::{EnvFilter, fmt, prelude::*};
 mod commands;
 
 #[derive(Parser)]
-#[command(name = "remember")]
+#[command(name = "mother")]
 #[command(author, version, about = "AST graph ingestion tool", long_about = None)]
 struct Cli {
     /// Enable verbose output
@@ -109,8 +109,14 @@ async fn main() -> anyhow::Result<()> {
             neo4j_password,
             version,
         } => {
-            commands::scan::run(&path, &neo4j_uri, &neo4j_user, &neo4j_password, version.as_deref())
-                .await?;
+            commands::scan::run(
+                &path,
+                &neo4j_uri,
+                &neo4j_user,
+                &neo4j_password,
+                version.as_deref(),
+            )
+            .await?;
         }
         Commands::Query {
             query,
