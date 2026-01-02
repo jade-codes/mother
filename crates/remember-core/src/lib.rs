@@ -23,3 +23,4 @@ pub use graph::neo4j::Neo4jClient;
 pub use lsp::{LspClient, LspServerManager};
 pub use scanner::{DiscoveredFile, Scanner, compute_file_hash};
 pub use version::ScanRun;
+// test
