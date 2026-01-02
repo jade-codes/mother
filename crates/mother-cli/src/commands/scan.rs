@@ -225,12 +225,28 @@ pub async fn run(
         symbol_count += file_symbol_count;
     }
 
-    // Phase 3: Extract references for each symbol
+    // Phase 3: Extract references for each symbol and create Symbol→Symbol edges
     info!(
         "Phase 3: Extracting references for {} symbols...",
         all_symbols.len()
     );
     let mut reference_count = 0;
+
+    // Build lookup table: file_path → list of (symbol_id, start_line, end_line)
+    // This lets us find which symbol contains a given reference line
+    use std::collections::HashMap;
+    let mut symbols_by_file: HashMap<String, Vec<(String, u32, u32)>> = HashMap::new();
+    for sym in &all_symbols {
+        // Convert file:// URI to path
+        let file_path = sym
+            .file_uri
+            .strip_prefix("file://")
+            .unwrap_or(&sym.file_uri);
+        symbols_by_file
+            .entry(file_path.to_string())
+            .or_default()
+            .push((sym.id.clone(), sym.start_line, sym.end_line));
+    }
 
     for symbol_info in &all_symbols {
         let lsp_client = match lsp_manager.get_client(symbol_info.language).await {
@@ -258,20 +274,40 @@ pub async fn run(
             }
         };
 
-        if refs.is_empty() {
-            continue;
-        }
-
-        // Store references in Neo4j
-        match client
-            .create_references(&symbol_info.id, &refs, &commit_sha)
-            .await
-        {
-            Ok(count) => {
-                reference_count += count;
+        // For each reference, find the containing symbol and create an edge
+        for reference in &refs {
+            // Skip if this is the definition itself
+            if reference.is_definition {
+                continue;
             }
-            Err(e) => {
-                tracing::debug!("Failed to store references: {}", e);
+
+            let ref_file = reference.file.display().to_string();
+            let ref_line = reference.line;
+
+            // Find which symbol in the reference file contains this line
+            if let Some(symbols_in_file) = symbols_by_file.get(&ref_file) {
+                // Find the smallest (most specific) symbol that contains this line
+                let containing_symbol = symbols_in_file
+                    .iter()
+                    .filter(|(_, start, end)| ref_line >= *start && ref_line <= *end)
+                    .min_by_key(|(_, start, end)| end - start);
+
+                if let Some((from_id, _, _)) = containing_symbol {
+                    // Create edge: from_symbol -[:REFERENCES]-> to_symbol (symbol_info)
+                    if let Err(e) = client
+                        .create_symbol_reference(
+                            from_id,
+                            &symbol_info.id,
+                            ref_line,
+                            reference.start_col,
+                        )
+                        .await
+                    {
+                        tracing::debug!("Failed to create reference edge: {}", e);
+                        continue;
+                    }
+                    reference_count += 1;
+                }
             }
         }
     }
@@ -298,9 +334,7 @@ fn collect_symbol_positions(
 ) {
     // The graph_symbols are flattened in the same order as LSP symbols traversal
     // We'll flatten LSP symbols to match
-    fn flatten_lsp(
-        symbols: &[mother_core::lsp::LspSymbol],
-    ) -> Vec<&mother_core::lsp::LspSymbol> {
+    fn flatten_lsp(symbols: &[mother_core::lsp::LspSymbol]) -> Vec<&mother_core::lsp::LspSymbol> {
         let mut result = Vec::new();
         for sym in symbols {
             result.push(sym);
@@ -317,6 +351,7 @@ fn collect_symbol_positions(
             id: graph_sym.id.clone(),
             file_uri: file_uri.to_string(),
             start_line: lsp_sym.start_line,
+            end_line: lsp_sym.end_line,
             start_col: lsp_sym.start_col,
             language,
         });
@@ -327,6 +362,7 @@ struct SymbolInfo {
     id: String,
     file_uri: String,
     start_line: u32,
+    end_line: u32,
     start_col: u32,
     language: mother_core::scanner::Language,
 }

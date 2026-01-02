@@ -12,6 +12,8 @@ pub struct LspSymbol {
     pub kind: LspSymbolKind,
     /// Full detail/signature
     pub detail: Option<String>,
+    /// Container name (for flat SymbolInformation format)
+    pub container_name: Option<String>,
     /// File containing the symbol
     pub file: PathBuf,
     /// Start line (0-indexed)

@@ -359,6 +359,7 @@ impl LspClient {
             name: symbol.name.clone(),
             kind: self.convert_symbol_kind(symbol.kind),
             detail: symbol.detail.clone(),
+            container_name: None, // Nested format uses explicit children instead
             file: std::path::PathBuf::new(), // DocumentSymbol doesn't include file
             start_line: symbol.range.start.line,
             end_line: symbol.range.end.line,
@@ -372,10 +373,13 @@ impl LspClient {
         &self,
         symbol: &async_lsp::lsp_types::SymbolInformation,
     ) -> LspSymbol {
+        #[allow(deprecated)]
+        let container_name = symbol.container_name.clone();
         LspSymbol {
             name: symbol.name.clone(),
             kind: self.convert_symbol_kind(symbol.kind),
             detail: None,
+            container_name,
             file: Path::new(symbol.location.uri.path()).to_path_buf(),
             start_line: symbol.location.range.start.line,
             end_line: symbol.location.range.end.line,

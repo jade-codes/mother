@@ -35,9 +35,18 @@ pub fn lsp_symbol_to_node(
     file_path: &Path,
     parent_qualified_name: Option<&str>,
 ) -> SymbolNode {
+    // Build qualified name from either:
+    // 1. Parent qualified name (for nested DocumentSymbol format)
+    // 2. Container name (for flat SymbolInformation format)
+    // 3. Just the symbol name if neither is available
     let qualified_name = match parent_qualified_name {
         Some(parent) => format!("{}::{}", parent, symbol.name),
-        None => symbol.name.clone(),
+        None => match &symbol.container_name {
+            Some(container) if !container.is_empty() => {
+                format!("{}::{}", container, symbol.name)
+            }
+            _ => symbol.name.clone(),
+        },
     };
 
     SymbolNode {
