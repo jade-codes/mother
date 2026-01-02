@@ -1,0 +1,26 @@
+[package]
+name = "remember-cli"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "CLI for the remember AST graph ingestion tool"
+
+[[bin]]
+name = "remember"
+path = "src/main.rs"
+
+[dependencies]
+remember-core = { path = "../remember-core" }
+clap.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+anyhow.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true
+
+[lints]
+workspace = true

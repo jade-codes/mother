@@ -1,0 +1,115 @@
+[workspace]
+members = ["crates/remember-core", "crates/remember-cli"]
+resolver = "2"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+authors = ["jade-codes"]
+license = "MIT"
+repository = "https://github.com/jade-codes/remember"
+description = "Semantic graph ingestion system via LSP"
+
+[workspace.dependencies]
+# Neo4j async driver
+neo4rs = "0.8"
+tokio = { version = "1", features = ["full"] }
+
+# CLI and utilities
+clap = { version = "4", features = ["derive"] }
+walkdir = "2"
+ignore = "0.4"
+
+# Content hashing
+sha2 = "0.10"
+
+# Serialization
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# Error handling
+thiserror = "2"
+anyhow = "1"
+
+# Logging
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# Git integration
+git2 = { version = "0.19", default-features = false }
+
+# Async utilities
+futures = "0.3"
+
+# UUID generation
+uuid = { version = "1", features = ["v4", "serde"] }
+
+# Date/time
+chrono = { version = "0.4", features = ["serde"] }
+
+# Testing utilities
+tempfile = "3"
+rstest = "0.23"
+
+[workspace.lints.clippy]
+# Enforce explicit error handling
+unwrap_used = "warn"
+expect_used = "warn"
+panic = "warn"
+todo = "warn"
+unimplemented = "warn"
+
+# Code quality
+dbg_macro = "warn"
+print_stdout = "warn"
+print_stderr = "warn"
+missing_errors_doc = "warn"
+missing_panics_doc = "warn"
+
+# Performance
+inefficient_to_string = "warn"
+unnecessary_wraps = "warn"
+
+# Style consistency
+enum_glob_use = "warn"
+wildcard_imports = "warn"
+
+# Test quality
+collapsible_if = "warn"
+collapsible_else_if = "warn"
+cognitive_complexity = "deny"
+
+# Deny by category
+correctness = { level = "deny", priority = -1 }
+suspicious = { level = "deny", priority = -1 }
+complexity = { level = "deny", priority = -1 }
+perf = { level = "deny", priority = -1 }
+
+# ============================================================================
+# Build Optimization Profiles
+# ============================================================================
+
+[profile.dev]
+opt-level = 0
+debug = true
+incremental = true
+codegen-units = 256
+
+[profile.dev.package."*"]
+opt-level = 1
+
+[profile.test]
+opt-level = 0
+debug = true
+incremental = true
+
+[profile.release]
+opt-level = 3
+lto = false
+codegen-units = 16
+strip = true
+
+[profile.production]
+inherits = "release"
+lto = "thin"
+codegen-units = 1

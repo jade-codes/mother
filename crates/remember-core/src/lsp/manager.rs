@@ -1,0 +1,110 @@
+//! LSP Server Manager: Manages multiple LSP servers
+
+use std::collections::HashMap;
+use std::path::{Path, PathBuf};
+
+use anyhow::Result;
+
+use super::client::LspClient;
+use super::types::LspServerConfig;
+use crate::scanner::Language;
+
+/// Default LSP server commands for each language
+pub struct LspServerDefaults;
+
+impl LspServerDefaults {
+    /// Get the default server config for a language
+    #[must_use]
+    pub fn for_language(language: Language, root_path: &Path) -> Option<LspServerConfig> {
+        let root = root_path.to_path_buf();
+        
+        match language {
+            Language::Rust => Some(LspServerConfig {
+                language,
+                command: "rust-analyzer".to_string(),
+                args: vec![],
+                root_path: root,
+                init_options: None,
+            }),
+            Language::Python => Some(LspServerConfig {
+                language,
+                command: "pyright-langserver".to_string(),
+                args: vec!["--stdio".to_string()],
+                root_path: root,
+                init_options: None,
+            }),
+            Language::TypeScript | Language::JavaScript => Some(LspServerConfig {
+                language,
+                command: "typescript-language-server".to_string(),
+                args: vec!["--stdio".to_string()],
+                root_path: root,
+                init_options: None,
+            }),
+            Language::SysML | Language::KerML => Some(LspServerConfig {
+                language,
+                command: "syster-lsp".to_string(),
+                args: vec![],
+                root_path: root,
+                init_options: None,
+            }),
+        }
+    }
+}
+
+/// Manages multiple LSP server instances
+pub struct LspServerManager {
+    root_path: PathBuf,
+    clients: HashMap<Language, LspClient>,
+    custom_configs: HashMap<Language, LspServerConfig>,
+}
+
+impl LspServerManager {
+    /// Create a new server manager
+    #[must_use]
+    pub fn new(root_path: impl Into<PathBuf>) -> Self {
+        Self {
+            root_path: root_path.into(),
+            clients: HashMap::new(),
+            custom_configs: HashMap::new(),
+        }
+    }
+
+    /// Register a custom server config for a language
+    pub fn register_server(&mut self, config: LspServerConfig) {
+        self.custom_configs.insert(config.language, config);
+    }
+
+    /// Get or start an LSP client for a language
+    ///
+    /// # Errors
+    /// Returns an error if the server cannot be started.
+    pub async fn get_client(&mut self, language: Language) -> Result<&mut LspClient> {
+        if !self.clients.contains_key(&language) {
+            let config = self.custom_configs
+                .get(&language)
+                .cloned()
+                .or_else(|| LspServerDefaults::for_language(language, &self.root_path))
+                .ok_or_else(|| anyhow::anyhow!("No LSP server configured for {:?}", language))?;
+
+            let mut client = LspClient::start(config).await?;
+            
+            let root_uri = format!("file://{}", self.root_path.display());
+            client.initialize(&root_uri).await?;
+            
+            self.clients.insert(language, client);
+        }
+
+        Ok(self.clients.get_mut(&language).expect("Just inserted"))
+    }
+
+    /// Shutdown all LSP servers
+    ///
+    /// # Errors
+    /// Returns an error if any server fails to shutdown.
+    pub async fn shutdown_all(&mut self) -> Result<()> {
+        for (_, mut client) in self.clients.drain() {
+            let _ = client.shutdown().await;
+        }
+        Ok(())
+    }
+}
