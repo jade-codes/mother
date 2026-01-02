@@ -41,6 +41,11 @@ git2 = { version = "0.19", default-features = false }
 # Async utilities
 futures = "0.3"
 
+# LSP
+async-lsp = { version = "0.2", features = ["tokio"] }
+tower = "0.4"
+async-process = "2"
+
 # UUID generation
 uuid = { version = "1", features = ["v4", "serde"] }
 

@@ -4,9 +4,10 @@ use std::path::Path;
 
 use anyhow::Result;
 use remember_core::graph::convert::convert_symbols;
+use remember_core::graph::model::SymbolNode;
 use remember_core::graph::neo4j::{Neo4jClient, Neo4jConfig};
 use remember_core::lsp::LspServerManager;
-use remember_core::scanner::{compute_file_hash, Scanner};
+use remember_core::scanner::{Scanner, compute_file_hash};
 use remember_core::version::ScanRun;
 use tracing::info;
 
@@ -36,7 +37,11 @@ pub async fn run(
     info!(
         "Created scan run: {} (commit: {}, branch: {:?})",
         scan_run.id,
-        if commit_sha.is_empty() { "none" } else { &commit_sha },
+        if commit_sha.is_empty() {
+            "none"
+        } else {
+            &commit_sha
+        },
         scan_run.branch
     );
 
@@ -63,9 +68,20 @@ pub async fn run(
     // Initialize LSP manager
     let mut lsp_manager = LspServerManager::new(&abs_path);
 
+    // Phase 1: Create files in Neo4j and open in LSP
+    // We track files that need symbol extraction
+    info!("Phase 1: Opening files in LSP...");
+
+    struct FileToProcess {
+        path: std::path::PathBuf,
+        file_uri: String,
+        content_hash: String,
+        language: remember_core::scanner::Language,
+    }
+
+    let mut files_to_process: Vec<FileToProcess> = Vec::new();
     let mut new_file_count = 0;
     let mut reused_file_count = 0;
-    let mut symbol_count = 0;
 
     for file in &files {
         // Compute file hash
@@ -100,15 +116,11 @@ pub async fn run(
             }
         };
 
-        // Extract symbols via LSP
+        // Extract symbols via LSP - get client (this starts the server if needed)
         let lsp_client = match lsp_manager.get_client(file.language).await {
             Ok(c) => c,
             Err(e) => {
-                tracing::warn!(
-                    "Failed to get LSP client for {:?}: {}",
-                    file.language,
-                    e
-                );
+                tracing::warn!("Failed to get LSP client for {:?}: {}", file.language, e);
                 continue;
             }
         };
@@ -131,31 +143,137 @@ pub async fn run(
             continue;
         }
 
+        files_to_process.push(FileToProcess {
+            path: file.path.clone(),
+            file_uri,
+            content_hash,
+            language: file.language,
+        });
+    }
+
+    // Phase 2: Query symbols for all files
+    // Note: Indexing wait is handled by the LSP client via progress notifications
+    info!(
+        "Phase 2: Extracting symbols from {} files...",
+        files_to_process.len()
+    );
+    let mut symbol_count = 0;
+
+    // Track symbols for reference extraction
+    let mut all_symbols: Vec<SymbolInfo> = Vec::new();
+
+    for file_info in &files_to_process {
+        let lsp_client = match lsp_manager.get_client(file_info.language).await {
+            Ok(c) => c,
+            Err(e) => {
+                tracing::warn!("Failed to get LSP client: {}", e);
+                continue;
+            }
+        };
+
         // Get document symbols
-        let lsp_symbols = match lsp_client.document_symbols(&file_uri).await {
+        let lsp_symbols = match lsp_client.document_symbols(&file_info.file_uri).await {
             Ok(s) => s,
             Err(e) => {
-                tracing::warn!("Failed to get symbols for {}: {}", file.path.display(), e);
+                tracing::warn!(
+                    "Failed to get symbols for {}: {}",
+                    file_info.path.display(),
+                    e
+                );
                 continue;
             }
         };
 
         // Convert LSP symbols to graph nodes
-        let symbols = convert_symbols(&lsp_symbols, &file.path);
+        let symbols = convert_symbols(&lsp_symbols, &file_info.path);
         let file_symbol_count = symbols.len();
 
+        tracing::info!(
+            "  {} → {} symbols (from {} lsp symbols)",
+            file_info
+                .path
+                .file_name()
+                .unwrap_or_default()
+                .to_string_lossy(),
+            file_symbol_count,
+            lsp_symbols.len()
+        );
+
         // Store symbols in Neo4j
-        if let Err(e) = client.create_symbols_batch(&symbols, &content_hash).await {
-            tracing::warn!("Failed to store symbols for {}: {}", file.path.display(), e);
+        if let Err(e) = client
+            .create_symbols_batch(&symbols, &file_info.content_hash)
+            .await
+        {
+            tracing::warn!(
+                "Failed to store symbols for {}: {}",
+                file_info.path.display(),
+                e
+            );
             continue;
         }
 
-        symbol_count += file_symbol_count;
-        tracing::debug!(
-            "Extracted {} symbols from: {}",
-            file_symbol_count,
-            file_path_str
+        // Track symbols for reference extraction
+        // We need to collect position info from the original LSP symbols
+        collect_symbol_positions(
+            &lsp_symbols,
+            &symbols,
+            &file_info.file_uri,
+            file_info.language,
+            &mut all_symbols,
         );
+
+        symbol_count += file_symbol_count;
+    }
+
+    // Phase 3: Extract references for each symbol
+    info!(
+        "Phase 3: Extracting references for {} symbols...",
+        all_symbols.len()
+    );
+    let mut reference_count = 0;
+
+    for symbol_info in &all_symbols {
+        let lsp_client = match lsp_manager.get_client(symbol_info.language).await {
+            Ok(c) => c,
+            Err(e) => {
+                tracing::warn!("Failed to get LSP client: {}", e);
+                continue;
+            }
+        };
+
+        // Query references for this symbol
+        let refs = match lsp_client
+            .references(
+                &symbol_info.file_uri,
+                symbol_info.start_line,
+                symbol_info.start_col,
+                true, // include declaration
+            )
+            .await
+        {
+            Ok(r) => r,
+            Err(e) => {
+                tracing::debug!("Failed to get references: {}", e);
+                continue;
+            }
+        };
+
+        if refs.is_empty() {
+            continue;
+        }
+
+        // Store references in Neo4j
+        match client
+            .create_references(&symbol_info.id, &refs, &commit_sha)
+            .await
+        {
+            Ok(count) => {
+                reference_count += count;
+            }
+            Err(e) => {
+                tracing::debug!("Failed to store references: {}", e);
+            }
+        }
     }
 
     // Shutdown LSP servers
@@ -164,8 +282,51 @@ pub async fn run(
     }
 
     info!(
-        "✓ Scan completed: {} new files, {} reused (unchanged content), {} symbols extracted",
-        new_file_count, reused_file_count, symbol_count
+        "✓ Scan completed: {} new files, {} reused, {} symbols, {} references",
+        new_file_count, reused_file_count, symbol_count, reference_count
     );
     Ok(())
+}
+
+/// Collect position info from LSP symbols, matching them to graph nodes by name order
+fn collect_symbol_positions(
+    lsp_symbols: &[remember_core::lsp::LspSymbol],
+    graph_symbols: &[SymbolNode],
+    file_uri: &str,
+    language: remember_core::scanner::Language,
+    out: &mut Vec<SymbolInfo>,
+) {
+    // The graph_symbols are flattened in the same order as LSP symbols traversal
+    // We'll flatten LSP symbols to match
+    fn flatten_lsp(
+        symbols: &[remember_core::lsp::LspSymbol],
+    ) -> Vec<&remember_core::lsp::LspSymbol> {
+        let mut result = Vec::new();
+        for sym in symbols {
+            result.push(sym);
+            result.extend(flatten_lsp(&sym.children));
+        }
+        result
+    }
+
+    let flat_lsp = flatten_lsp(lsp_symbols);
+
+    // Match by index (they should be in the same order)
+    for (lsp_sym, graph_sym) in flat_lsp.iter().zip(graph_symbols.iter()) {
+        out.push(SymbolInfo {
+            id: graph_sym.id.clone(),
+            file_uri: file_uri.to_string(),
+            start_line: lsp_sym.start_line,
+            start_col: lsp_sym.start_col,
+            language,
+        });
+    }
+}
+
+struct SymbolInfo {
+    id: String,
+    file_uri: String,
+    start_line: u32,
+    start_col: u32,
+    language: remember_core::scanner::Language,
 }

@@ -12,6 +12,11 @@ description = "Core library for semantic graph ingestion via LSP"
 neo4rs.workspace = true
 tokio.workspace = true
 
+# LSP
+async-lsp.workspace = true
+tower.workspace = true
+async-process.workspace = true
+
 # Utilities
 walkdir.workspace = true
 ignore.workspace = true

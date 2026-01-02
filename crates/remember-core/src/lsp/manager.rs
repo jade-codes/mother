@@ -2,6 +2,7 @@
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
+use std::time::Duration;
 
 use anyhow::Result;
 
@@ -15,38 +16,38 @@ pub struct LspServerDefaults;
 impl LspServerDefaults {
     /// Get the default server config for a language
     #[must_use]
-    pub fn for_language(language: Language, root_path: &Path) -> Option<LspServerConfig> {
+    pub fn for_language(language: Language, root_path: &Path) -> LspServerConfig {
         let root = root_path.to_path_buf();
-        
+
         match language {
-            Language::Rust => Some(LspServerConfig {
+            Language::Rust => LspServerConfig {
                 language,
                 command: "rust-analyzer".to_string(),
                 args: vec![],
                 root_path: root,
                 init_options: None,
-            }),
-            Language::Python => Some(LspServerConfig {
+            },
+            Language::Python => LspServerConfig {
                 language,
                 command: "pyright-langserver".to_string(),
                 args: vec!["--stdio".to_string()],
                 root_path: root,
                 init_options: None,
-            }),
-            Language::TypeScript | Language::JavaScript => Some(LspServerConfig {
+            },
+            Language::TypeScript | Language::JavaScript => LspServerConfig {
                 language,
                 command: "typescript-language-server".to_string(),
                 args: vec!["--stdio".to_string()],
                 root_path: root,
                 init_options: None,
-            }),
-            Language::SysML | Language::KerML => Some(LspServerConfig {
+            },
+            Language::SysML | Language::KerML => LspServerConfig {
                 language,
                 command: "syster-lsp".to_string(),
                 args: vec![],
                 root_path: root,
                 init_options: None,
-            }),
+            },
         }
     }
 }
@@ -80,21 +81,27 @@ impl LspServerManager {
     /// Returns an error if the server cannot be started.
     pub async fn get_client(&mut self, language: Language) -> Result<&mut LspClient> {
         if !self.clients.contains_key(&language) {
-            let config = self.custom_configs
+            let config = self
+                .custom_configs
                 .get(&language)
                 .cloned()
-                .or_else(|| LspServerDefaults::for_language(language, &self.root_path))
-                .ok_or_else(|| anyhow::anyhow!("No LSP server configured for {:?}", language))?;
+                .unwrap_or_else(|| LspServerDefaults::for_language(language, &self.root_path));
 
             let mut client = LspClient::start(config).await?;
-            
+
             let root_uri = format!("file://{}", self.root_path.display());
             client.initialize(&root_uri).await?;
-            
+
+            // Wait for the LSP server to finish initial indexing
+            // This uses async-lsp's proper notification handling
+            client.wait_for_indexing(Duration::from_secs(30)).await?;
+
             self.clients.insert(language, client);
         }
 
-        Ok(self.clients.get_mut(&language).expect("Just inserted"))
+        self.clients
+            .get_mut(&language)
+            .ok_or_else(|| anyhow::anyhow!("Failed to get LSP client for {:?}", language))
     }
 
     /// Shutdown all LSP servers

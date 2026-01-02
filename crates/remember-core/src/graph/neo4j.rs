@@ -195,13 +195,12 @@ impl Neo4jClient {
                 r#"
                 MATCH (f:File {content_hash: $content_hash})
                 MATCH (c:Commit {sha: $commit_sha})
-                MERGE (c)-[:CONTAINS {path: $file_path}]->(f)
+                MERGE (c)-[:CONTAINS]->(f)
                 "#
                 .to_string(),
             )
             .param("content_hash", content_hash)
-            .param("commit_sha", commit_sha)
-            .param("file_path", file_path);
+            .param("commit_sha", commit_sha);
 
             self.graph.run(link_query).await?;
             return Ok(None); // File exists, skip symbol extraction
@@ -213,9 +212,10 @@ impl Neo4jClient {
             MATCH (c:Commit {sha: $commit_sha})
             CREATE (f:File {
                 content_hash: $content_hash,
+                path: $file_path,
                 language: $language
             })
-            CREATE (c)-[:CONTAINS {path: $file_path}]->(f)
+            CREATE (c)-[:CONTAINS]->(f)
             "#
             .to_string(),
         )
@@ -312,5 +312,62 @@ impl Neo4jClient {
 
         self.graph.run(query).await?;
         Ok(())
+    }
+
+    /// Create REFERENCES edges from a symbol to all locations where it's used
+    ///
+    /// Creates Reference nodes for each usage location and links them to the symbol.
+    ///
+    /// # Errors
+    /// Returns an error if the query fails.
+    pub async fn create_references(
+        &self,
+        symbol_id: &str,
+        references: &[crate::lsp::LspReference],
+        commit_sha: &str,
+    ) -> Result<usize, Neo4jError> {
+        let mut count = 0;
+
+        for reference in references {
+            // Skip if this is the definition itself
+            if reference.is_definition {
+                continue;
+            }
+
+            let file_path = reference.file.display().to_string();
+
+            // Create a Reference node and link it to the symbol
+            // Also link to the File if it exists in this commit
+            let query = Query::new(
+                r#"
+                MATCH (s:Symbol {id: $symbol_id})
+                CREATE (r:Reference {
+                    file_path: $file_path,
+                    line: $line,
+                    start_col: $start_col,
+                    end_col: $end_col
+                })
+                CREATE (r)-[:REFERENCES]->(s)
+                WITH r
+                OPTIONAL MATCH (c:Commit {sha: $commit_sha})-[:CONTAINS]->(f:File)
+                WHERE f.content_hash IN [(c2:Commit {sha: $commit_sha})-[:CONTAINS {path: $file_path}]->(f2:File) | f2.content_hash]
+                FOREACH (_ IN CASE WHEN f IS NOT NULL THEN [1] ELSE [] END |
+                    CREATE (r)-[:IN_FILE]->(f)
+                )
+                "#
+                .to_string(),
+            )
+            .param("symbol_id", symbol_id)
+            .param("file_path", file_path)
+            .param("line", reference.line as i64)
+            .param("start_col", reference.start_col as i64)
+            .param("end_col", reference.end_col as i64)
+            .param("commit_sha", commit_sha);
+
+            self.graph.run(query).await?;
+            count += 1;
+        }
+
+        Ok(count)
     }
 }

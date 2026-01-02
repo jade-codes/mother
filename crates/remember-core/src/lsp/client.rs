@@ -1,21 +1,92 @@
-//! LSP Client: Communicates with language servers
+//! LSP Client: Communicates with language servers using async-lsp
 
-use std::collections::HashMap;
+use std::ops::ControlFlow;
 use std::path::Path;
 use std::process::Stdio;
+use std::time::Duration;
 
 use anyhow::Result;
-use serde_json::{json, Value};
-use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
-use tokio::process::{Child, Command};
-use tokio::sync::Mutex;
+use async_lsp::concurrency::ConcurrencyLayer;
+use async_lsp::panic::CatchUnwindLayer;
+use async_lsp::router::Router;
+use async_lsp::tracing::TracingLayer;
+use async_lsp::{LanguageClient, LanguageServer, ResponseError, ServerSocket};
+// Use lsp_types re-exported from async_lsp to avoid version mismatch
+use async_lsp::lsp_types::{
+    ClientCapabilities, DidOpenTextDocumentParams, DocumentSymbolParams, DocumentSymbolResponse,
+    GotoDefinitionParams, GotoDefinitionResponse, InitializeParams, InitializedParams,
+    NumberOrString, Position, ProgressParams, ProgressParamsValue, PublishDiagnosticsParams,
+    ReferenceContext, ReferenceParams, ShowMessageParams, TextDocumentIdentifier, TextDocumentItem,
+    TextDocumentPositionParams, Url, WindowClientCapabilities, WorkDoneProgress, WorkspaceFolder,
+};
+use futures::channel::oneshot;
+use tower::ServiceBuilder;
 
 use super::types::{LspReference, LspServerConfig, LspSymbol, LspSymbolKind};
 
-/// Client for communicating with an LSP server
+/// Known rust-analyzer indexing progress tokens
+const RA_INDEXING_TOKENS: &[&str] = &["rustAnalyzer/Indexing", "rustAnalyzer/cachePriming"];
+
+/// Client state for handling LSP notifications
+struct ClientState {
+    indexed_tx: Option<oneshot::Sender<()>>,
+}
+
+/// Event to signal stopping the client
+struct Stop;
+
+impl LanguageClient for ClientState {
+    type Error = ResponseError;
+    type NotifyResult = ControlFlow<async_lsp::Result<()>>;
+
+    fn progress(&mut self, params: ProgressParams) -> Self::NotifyResult {
+        // Check if indexing is complete - combined condition to satisfy collapsible_if lint
+        let is_indexing_token = matches!(&params.token, NumberOrString::String(s) if RA_INDEXING_TOKENS.contains(&&**s));
+        let is_end_progress = matches!(
+            params.value,
+            ProgressParamsValue::WorkDone(WorkDoneProgress::End(_))
+        );
+
+        if is_indexing_token && is_end_progress {
+            if let Some(tx) = self.indexed_tx.take() {
+                let _ = tx.send(());
+            }
+        }
+        ControlFlow::Continue(())
+    }
+
+    fn publish_diagnostics(&mut self, _: PublishDiagnosticsParams) -> Self::NotifyResult {
+        ControlFlow::Continue(())
+    }
+
+    fn show_message(&mut self, params: ShowMessageParams) -> Self::NotifyResult {
+        tracing::debug!("LSP message {:?}: {}", params.typ, params.message);
+        ControlFlow::Continue(())
+    }
+}
+
+impl ClientState {
+    fn new_router(indexed_tx: oneshot::Sender<()>) -> Router<Self> {
+        let mut router = Router::from_language_client(ClientState {
+            indexed_tx: Some(indexed_tx),
+        });
+        router.event(Self::on_stop);
+        router
+    }
+
+    fn on_stop(&mut self, _: Stop) -> ControlFlow<async_lsp::Result<()>> {
+        ControlFlow::Break(Ok(()))
+    }
+}
+
+/// Client for communicating with an LSP server using async-lsp
 pub struct LspClient {
-    process: Child,
-    request_id: Mutex<i64>,
+    server: ServerSocket,
+    #[allow(dead_code)]
+    mainloop_handle: tokio::task::JoinHandle<()>,
+    #[allow(dead_code)]
+    child: async_process::Child,
+    indexed_rx: Option<oneshot::Receiver<()>>,
     #[allow(dead_code)]
     config: LspServerConfig,
 }
@@ -26,22 +97,49 @@ impl LspClient {
     /// # Errors
     /// Returns an error if the server cannot be started.
     pub async fn start(config: LspServerConfig) -> Result<Self> {
-        let mut cmd = Command::new(&config.command);
-        cmd.args(&config.args)
+        let (indexed_tx, indexed_rx) = oneshot::channel();
+
+        let (mainloop, server) = async_lsp::MainLoop::new_client(|_server| {
+            ServiceBuilder::new()
+                .layer(TracingLayer::default())
+                .layer(CatchUnwindLayer::default())
+                .layer(ConcurrencyLayer::default())
+                .service(ClientState::new_router(indexed_tx))
+        });
+
+        // Spawn the LSP server process
+        let mut child = async_process::Command::new(&config.command)
+            .args(&config.args)
             .current_dir(&config.root_path)
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
-            .stderr(Stdio::piped());
+            .stderr(Stdio::inherit())
+            .kill_on_drop(true)
+            .spawn()?;
 
-        let process = cmd.spawn()?;
+        let stdout = child
+            .stdout
+            .take()
+            .ok_or_else(|| anyhow::anyhow!("Failed to get stdout from LSP process"))?;
+        let stdin = child
+            .stdin
+            .take()
+            .ok_or_else(|| anyhow::anyhow!("Failed to get stdin from LSP process"))?;
 
-        let client = Self {
-            process,
-            request_id: Mutex::new(0),
+        // Run the mainloop in a background task
+        let mainloop_handle = tokio::spawn(async move {
+            if let Err(e) = mainloop.run_buffered(stdout, stdin).await {
+                tracing::warn!("LSP mainloop error: {}", e);
+            }
+        });
+
+        Ok(Self {
+            server,
+            mainloop_handle,
+            child,
+            indexed_rx: Some(indexed_rx),
             config,
-        };
-
-        Ok(client)
+        })
     }
 
     /// Initialize the LSP server
@@ -49,27 +147,50 @@ impl LspClient {
     /// # Errors
     /// Returns an error if initialization fails.
     pub async fn initialize(&mut self, root_uri: &str) -> Result<()> {
-        let params = json!({
-            "processId": std::process::id(),
-            "rootUri": root_uri,
-            "capabilities": {
-                "textDocument": {
-                    "documentSymbol": {
-                        "hierarchicalDocumentSymbolSupport": true
-                    },
-                    "references": {},
-                    "definition": {},
-                    "implementation": {}
-                },
-                "workspace": {
-                    "workspaceFolders": true
+        let root_url = Url::parse(root_uri)?;
+
+        #[allow(deprecated)]
+        let params = InitializeParams {
+            process_id: Some(std::process::id()),
+            root_uri: Some(root_url.clone()),
+            workspace_folders: Some(vec![WorkspaceFolder {
+                uri: root_url,
+                name: "root".into(),
+            }]),
+            capabilities: ClientCapabilities {
+                window: Some(WindowClientCapabilities {
+                    work_done_progress: Some(true),
+                    ..Default::default()
+                }),
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+
+        let _result = self.server.initialize(params).await?;
+        self.server.initialized(InitializedParams {})?;
+
+        Ok(())
+    }
+
+    /// Wait for the LSP server to finish indexing
+    ///
+    /// # Errors
+    /// Returns an error if waiting times out.
+    pub async fn wait_for_indexing(&mut self, timeout: Duration) -> Result<()> {
+        if let Some(rx) = self.indexed_rx.take() {
+            match tokio::time::timeout(timeout, rx).await {
+                Ok(Ok(())) => {
+                    tracing::info!("LSP indexing complete");
+                }
+                Ok(Err(_)) => {
+                    tracing::debug!("Indexing channel closed");
+                }
+                Err(_) => {
+                    tracing::debug!("Indexing wait timed out, proceeding anyway");
                 }
             }
-        });
-
-        self.send_request("initialize", params).await?;
-        self.send_notification("initialized", json!({})).await?;
-
+        }
         Ok(())
     }
 
@@ -78,16 +199,28 @@ impl LspClient {
     /// # Errors
     /// Returns an error if the request fails.
     pub async fn document_symbols(&mut self, file_uri: &str) -> Result<Vec<LspSymbol>> {
-        let params = json!({
-            "textDocument": {
-                "uri": file_uri
-            }
-        });
+        let url = Url::parse(file_uri)?;
 
-        let response = self.send_request("textDocument/documentSymbol", params).await?;
-        
-        // Parse the response into LspSymbol
-        let symbols = self.parse_document_symbols(&response)?;
+        let params = DocumentSymbolParams {
+            text_document: TextDocumentIdentifier { uri: url },
+            work_done_progress_params: Default::default(),
+            partial_result_params: Default::default(),
+        };
+
+        let response = self.server.document_symbol(params).await?;
+
+        let symbols = match response {
+            Some(DocumentSymbolResponse::Flat(symbols)) => symbols
+                .into_iter()
+                .map(|s| self.convert_symbol_information(&s))
+                .collect(),
+            Some(DocumentSymbolResponse::Nested(symbols)) => symbols
+                .into_iter()
+                .map(|s| self.convert_document_symbol(&s))
+                .collect(),
+            None => vec![],
+        };
+
         Ok(symbols)
     }
 
@@ -102,22 +235,35 @@ impl LspClient {
         character: u32,
         include_declaration: bool,
     ) -> Result<Vec<LspReference>> {
-        let params = json!({
-            "textDocument": {
-                "uri": file_uri
-            },
-            "position": {
-                "line": line,
-                "character": character
-            },
-            "context": {
-                "includeDeclaration": include_declaration
-            }
-        });
+        let url = Url::parse(file_uri)?;
 
-        let response = self.send_request("textDocument/references", params).await?;
-        let references = self.parse_references(&response)?;
-        Ok(references)
+        let params = ReferenceParams {
+            text_document_position: TextDocumentPositionParams {
+                text_document: TextDocumentIdentifier { uri: url },
+                position: Position::new(line, character),
+            },
+            work_done_progress_params: Default::default(),
+            partial_result_params: Default::default(),
+            context: ReferenceContext {
+                include_declaration,
+            },
+        };
+
+        let response = self.server.references(params).await?;
+
+        let refs = response
+            .unwrap_or_default()
+            .into_iter()
+            .map(|loc| LspReference {
+                file: Path::new(loc.uri.path()).to_path_buf(),
+                line: loc.range.start.line,
+                start_col: loc.range.start.character,
+                end_col: loc.range.end.character,
+                is_definition: false,
+            })
+            .collect();
+
+        Ok(refs)
     }
 
     /// Go to definition of a symbol
@@ -130,19 +276,44 @@ impl LspClient {
         line: u32,
         character: u32,
     ) -> Result<Vec<LspReference>> {
-        let params = json!({
-            "textDocument": {
-                "uri": file_uri
-            },
-            "position": {
-                "line": line,
-                "character": character
-            }
-        });
+        let url = Url::parse(file_uri)?;
 
-        let response = self.send_request("textDocument/definition", params).await?;
-        let locations = self.parse_references(&response)?;
-        Ok(locations)
+        let params = GotoDefinitionParams {
+            text_document_position_params: TextDocumentPositionParams {
+                text_document: TextDocumentIdentifier { uri: url },
+                position: Position::new(line, character),
+            },
+            work_done_progress_params: Default::default(),
+            partial_result_params: Default::default(),
+        };
+
+        let response = self.server.definition(params).await?;
+
+        let locations = match response {
+            Some(GotoDefinitionResponse::Scalar(loc)) => vec![loc],
+            Some(GotoDefinitionResponse::Array(locs)) => locs,
+            Some(GotoDefinitionResponse::Link(links)) => links
+                .into_iter()
+                .map(|l| async_lsp::lsp_types::Location {
+                    uri: l.target_uri,
+                    range: l.target_selection_range,
+                })
+                .collect(),
+            None => vec![],
+        };
+
+        let refs = locations
+            .into_iter()
+            .map(|loc| LspReference {
+                file: Path::new(loc.uri.path()).to_path_buf(),
+                line: loc.range.start.line,
+                start_col: loc.range.start.character,
+                end_col: loc.range.end.character,
+                is_definition: true,
+            })
+            .collect();
+
+        Ok(refs)
     }
 
     /// Notify the server that a file was opened
@@ -150,16 +321,18 @@ impl LspClient {
     /// # Errors
     /// Returns an error if the notification fails.
     pub async fn did_open(&mut self, file_uri: &str, language_id: &str, text: &str) -> Result<()> {
-        let params = json!({
-            "textDocument": {
-                "uri": file_uri,
-                "languageId": language_id,
-                "version": 1,
-                "text": text
-            }
-        });
+        let url = Url::parse(file_uri)?;
 
-        self.send_notification("textDocument/didOpen", params).await
+        self.server.did_open(DidOpenTextDocumentParams {
+            text_document: TextDocumentItem {
+                uri: url,
+                language_id: language_id.into(),
+                version: 1,
+                text: text.into(),
+            },
+        })?;
+
+        Ok(())
     }
 
     /// Shutdown the LSP server
@@ -167,223 +340,80 @@ impl LspClient {
     /// # Errors
     /// Returns an error if shutdown fails.
     pub async fn shutdown(&mut self) -> Result<()> {
-        self.send_request("shutdown", json!(null)).await?;
-        self.send_notification("exit", json!(null)).await?;
+        self.server.shutdown(()).await?;
+        self.server.exit(())?;
+        self.server.emit(Stop)?;
         Ok(())
     }
 
-    // Internal methods
+    // Conversion helpers
 
-    async fn send_request(&mut self, method: &str, params: Value) -> Result<Value> {
-        let id = {
-            let mut id_guard = self.request_id.lock().await;
-            *id_guard += 1;
-            *id_guard
-        };
-
-        let request = json!({
-            "jsonrpc": "2.0",
-            "id": id,
-            "method": method,
-            "params": params
-        });
-
-        self.send_message(&request).await?;
-        self.read_response(id).await
-    }
-
-    async fn send_notification(&mut self, method: &str, params: Value) -> Result<()> {
-        let notification = json!({
-            "jsonrpc": "2.0",
-            "method": method,
-            "params": params
-        });
-
-        self.send_message(&notification).await
-    }
-
-    async fn send_message(&mut self, message: &Value) -> Result<()> {
-        let content = serde_json::to_string(message)?;
-        let header = format!("Content-Length: {}\r\n\r\n", content.len());
-
-        if let Some(stdin) = self.process.stdin.as_mut() {
-            stdin.write_all(header.as_bytes()).await?;
-            stdin.write_all(content.as_bytes()).await?;
-            stdin.flush().await?;
-        }
-
-        Ok(())
-    }
-
-    async fn read_response(&mut self, expected_id: i64) -> Result<Value> {
-        let stdout = self.process.stdout.as_mut()
-            .ok_or_else(|| anyhow::anyhow!("No stdout"))?;
-        let mut reader = BufReader::new(stdout);
-
-        // Read headers
-        let mut content_length = 0;
-        loop {
-            let mut line = String::new();
-            reader.read_line(&mut line).await?;
-            
-            if line == "\r\n" || line == "\n" {
-                break;
-            }
-            
-            if let Some(len_str) = line.strip_prefix("Content-Length: ") {
-                content_length = len_str.trim().parse()?;
-            }
-        }
-
-        // Read content
-        let mut content = vec![0u8; content_length];
-        tokio::io::AsyncReadExt::read_exact(&mut reader, &mut content).await?;
-
-        let response: Value = serde_json::from_slice(&content)?;
-
-        // Check if this is our response
-        if response.get("id").and_then(|v| v.as_i64()) == Some(expected_id) {
-            if let Some(result) = response.get("result") {
-                return Ok(result.clone());
-            }
-            if let Some(error) = response.get("error") {
-                anyhow::bail!("LSP error: {}", error);
-            }
-        }
-
-        Ok(response)
-    }
-
-    fn parse_document_symbols(&self, response: &Value) -> Result<Vec<LspSymbol>> {
-        let mut symbols = Vec::new();
-
-        if let Some(array) = response.as_array() {
-            for item in array {
-                if let Some(symbol) = self.parse_symbol(item) {
-                    symbols.push(symbol);
-                }
-            }
-        }
-
-        Ok(symbols)
-    }
-
-    fn parse_symbol(&self, value: &Value) -> Option<LspSymbol> {
-        let name = value.get("name")?.as_str()?.to_string();
-        let kind_num = value.get("kind")?.as_u64()?;
-        let kind = self.symbol_kind_from_number(kind_num as u32);
-
-        let detail = value.get("detail").and_then(|d| d.as_str()).map(String::from);
-
-        // Handle both DocumentSymbol (with range) and SymbolInformation (with location)
-        let (file, start_line, end_line, start_col, end_col) = if let Some(range) = value.get("range") {
-            let start = range.get("start")?;
-            let end = range.get("end")?;
-            (
-                std::path::PathBuf::new(), // DocumentSymbol doesn't have file
-                start.get("line")?.as_u64()? as u32,
-                end.get("line")?.as_u64()? as u32,
-                start.get("character")?.as_u64()? as u32,
-                end.get("character")?.as_u64()? as u32,
-            )
-        } else if let Some(location) = value.get("location") {
-            let uri = location.get("uri")?.as_str()?;
-            let range = location.get("range")?;
-            let start = range.get("start")?;
-            let end = range.get("end")?;
-            (
-                Path::new(uri.strip_prefix("file://").unwrap_or(uri)).to_path_buf(),
-                start.get("line")?.as_u64()? as u32,
-                end.get("line")?.as_u64()? as u32,
-                start.get("character")?.as_u64()? as u32,
-                end.get("character")?.as_u64()? as u32,
-            )
-        } else {
-            return None;
-        };
-
-        // Parse children recursively
-        let children = value
-            .get("children")
-            .and_then(|c| c.as_array())
-            .map(|arr| arr.iter().filter_map(|v| self.parse_symbol(v)).collect())
+    fn convert_document_symbol(&self, symbol: &async_lsp::lsp_types::DocumentSymbol) -> LspSymbol {
+        let children = symbol
+            .children
+            .as_ref()
+            .map(|c| c.iter().map(|s| self.convert_document_symbol(s)).collect())
             .unwrap_or_default();
 
-        Some(LspSymbol {
-            name,
-            kind,
-            detail,
-            file,
-            start_line,
-            end_line,
-            start_col,
-            end_col,
+        LspSymbol {
+            name: symbol.name.clone(),
+            kind: self.convert_symbol_kind(symbol.kind),
+            detail: symbol.detail.clone(),
+            file: std::path::PathBuf::new(), // DocumentSymbol doesn't include file
+            start_line: symbol.range.start.line,
+            end_line: symbol.range.end.line,
+            start_col: symbol.range.start.character,
+            end_col: symbol.range.end.character,
             children,
-        })
-    }
-
-    fn parse_references(&self, response: &Value) -> Result<Vec<LspReference>> {
-        let mut refs = Vec::new();
-
-        if let Some(array) = response.as_array() {
-            for item in array {
-                if let Some(r) = self.parse_location(item) {
-                    refs.push(r);
-                }
-            }
-        } else if response.is_object() {
-            // Single location
-            if let Some(r) = self.parse_location(response) {
-                refs.push(r);
-            }
         }
-
-        Ok(refs)
     }
 
-    fn parse_location(&self, value: &Value) -> Option<LspReference> {
-        let uri = value.get("uri")?.as_str()?;
-        let range = value.get("range")?;
-        let start = range.get("start")?;
-        let end = range.get("end")?;
-
-        Some(LspReference {
-            file: Path::new(uri.strip_prefix("file://").unwrap_or(uri)).to_path_buf(),
-            line: start.get("line")?.as_u64()? as u32,
-            start_col: start.get("character")?.as_u64()? as u32,
-            end_col: end.get("character")?.as_u64()? as u32,
-            is_definition: false,
-        })
+    fn convert_symbol_information(
+        &self,
+        symbol: &async_lsp::lsp_types::SymbolInformation,
+    ) -> LspSymbol {
+        LspSymbol {
+            name: symbol.name.clone(),
+            kind: self.convert_symbol_kind(symbol.kind),
+            detail: None,
+            file: Path::new(symbol.location.uri.path()).to_path_buf(),
+            start_line: symbol.location.range.start.line,
+            end_line: symbol.location.range.end.line,
+            start_col: symbol.location.range.start.character,
+            end_col: symbol.location.range.end.character,
+            children: vec![],
+        }
     }
 
-    fn symbol_kind_from_number(&self, kind: u32) -> LspSymbolKind {
+    fn convert_symbol_kind(&self, kind: async_lsp::lsp_types::SymbolKind) -> LspSymbolKind {
+        use async_lsp::lsp_types::SymbolKind;
         match kind {
-            1 => LspSymbolKind::File,
-            2 => LspSymbolKind::Module,
-            3 => LspSymbolKind::Namespace,
-            4 => LspSymbolKind::Package,
-            5 => LspSymbolKind::Class,
-            6 => LspSymbolKind::Method,
-            7 => LspSymbolKind::Property,
-            8 => LspSymbolKind::Field,
-            9 => LspSymbolKind::Constructor,
-            10 => LspSymbolKind::Enum,
-            11 => LspSymbolKind::Interface,
-            12 => LspSymbolKind::Function,
-            13 => LspSymbolKind::Variable,
-            14 => LspSymbolKind::Constant,
-            15 => LspSymbolKind::String,
-            16 => LspSymbolKind::Number,
-            17 => LspSymbolKind::Boolean,
-            18 => LspSymbolKind::Array,
-            19 => LspSymbolKind::Object,
-            20 => LspSymbolKind::Key,
-            21 => LspSymbolKind::Null,
-            22 => LspSymbolKind::EnumMember,
-            23 => LspSymbolKind::Struct,
-            24 => LspSymbolKind::Event,
-            25 => LspSymbolKind::Operator,
-            26 => LspSymbolKind::TypeParameter,
+            SymbolKind::FILE => LspSymbolKind::File,
+            SymbolKind::MODULE => LspSymbolKind::Module,
+            SymbolKind::NAMESPACE => LspSymbolKind::Namespace,
+            SymbolKind::PACKAGE => LspSymbolKind::Package,
+            SymbolKind::CLASS => LspSymbolKind::Class,
+            SymbolKind::METHOD => LspSymbolKind::Method,
+            SymbolKind::PROPERTY => LspSymbolKind::Property,
+            SymbolKind::FIELD => LspSymbolKind::Field,
+            SymbolKind::CONSTRUCTOR => LspSymbolKind::Constructor,
+            SymbolKind::ENUM => LspSymbolKind::Enum,
+            SymbolKind::INTERFACE => LspSymbolKind::Interface,
+            SymbolKind::FUNCTION => LspSymbolKind::Function,
+            SymbolKind::VARIABLE => LspSymbolKind::Variable,
+            SymbolKind::CONSTANT => LspSymbolKind::Constant,
+            SymbolKind::STRING => LspSymbolKind::String,
+            SymbolKind::NUMBER => LspSymbolKind::Number,
+            SymbolKind::BOOLEAN => LspSymbolKind::Boolean,
+            SymbolKind::ARRAY => LspSymbolKind::Array,
+            SymbolKind::OBJECT => LspSymbolKind::Object,
+            SymbolKind::KEY => LspSymbolKind::Key,
+            SymbolKind::NULL => LspSymbolKind::Null,
+            SymbolKind::ENUM_MEMBER => LspSymbolKind::EnumMember,
+            SymbolKind::STRUCT => LspSymbolKind::Struct,
+            SymbolKind::EVENT => LspSymbolKind::Event,
+            SymbolKind::OPERATOR => LspSymbolKind::Operator,
+            SymbolKind::TYPE_PARAMETER => LspSymbolKind::TypeParameter,
             _ => LspSymbolKind::Variable,
         }
     }
