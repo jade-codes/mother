@@ -111,6 +111,7 @@ pub fn marked_string_to_string(marked: MarkedString) -> String {
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
     use async_lsp::lsp_types::{Location, Position, Range, Url};

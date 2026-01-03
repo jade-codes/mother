@@ -68,7 +68,11 @@ run-guidelines: lint-test-naming
 	@echo ""
 	@echo "Step 3/3: Running tests..."
 	@cargo test --lib -- --test-threads=4
-	@cargo test --test '*' -- --test-threads=4
+	@if cargo test --test '*' --no-run 2>&1 | grep -q "no test target"; then \
+		echo "No integration tests found, skipping..."; \
+	else \
+		cargo test --test '*' -- --test-threads=4; \
+	fi
 	@cargo test --doc
 	@echo ""
 	@echo "=== ✓ All guidelines passed! ==="
