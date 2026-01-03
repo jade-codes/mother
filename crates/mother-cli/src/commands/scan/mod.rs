@@ -9,6 +9,9 @@ mod phase1;
 mod phase2;
 mod phase3;
 
+#[cfg(test)]
+mod tests;
+
 use std::path::Path;
 
 use anyhow::Result;
