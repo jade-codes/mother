@@ -1,5 +1,7 @@
 //! Tests for file walker
 
+#![allow(clippy::expect_used)]
+
 use crate::scanner::{Language, Scanner};
 use std::fs;
 use tempfile::TempDir;
