@@ -124,6 +124,7 @@ mod tests {
             start_col: 0,
             end_col: 0,
             children: vec![],
+            container_name: None,
         };
 
         let parent = LspSymbol {
@@ -136,6 +137,7 @@ mod tests {
             start_col: 0,
             end_col: 0,
             children: vec![child],
+            container_name: None,
         };
 
         let path = PathBuf::from("/test/file.rs");

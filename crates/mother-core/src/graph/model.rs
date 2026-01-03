@@ -1,5 +1,6 @@
 //! Graph model types
 
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
 /// Kind of symbol
@@ -110,4 +111,21 @@ pub struct Edge {
     pub line: Option<u32>,
     /// Column where the relationship is defined
     pub column: Option<u32>,
+}
+
+/// A scan run representing a versioned snapshot of a repository scan
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ScanRun {
+    /// Unique identifier for this scan run
+    pub id: String,
+    /// Path to the repository
+    pub repo_path: String,
+    /// Git commit SHA (if available)
+    pub commit_sha: Option<String>,
+    /// Git branch (if available)
+    pub branch: Option<String>,
+    /// When the scan was performed
+    pub scanned_at: DateTime<Utc>,
+    /// User-provided version tag
+    pub version: Option<String>,
 }

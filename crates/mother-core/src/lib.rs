@@ -14,14 +14,10 @@
 pub mod graph;
 pub mod lsp;
 pub mod scanner;
-pub mod version;
 
 // Re-export commonly used types
 pub use graph::convert::convert_symbols;
-pub use graph::model::{Edge, EdgeKind, SymbolKind, SymbolNode};
+pub use graph::model::{Edge, EdgeKind, ScanRun, SymbolKind, SymbolNode};
 pub use graph::neo4j::Neo4jClient;
 pub use lsp::{LspClient, LspServerManager};
-pub use scanner::{DiscoveredFile, Scanner, compute_file_hash};
-pub use version::ScanRun;
-// test
-// test comment
+pub use scanner::{DiscoveredFile, Scanner};

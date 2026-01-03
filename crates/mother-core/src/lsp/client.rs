@@ -15,7 +15,7 @@ use async_lsp::{LanguageClient, LanguageServer, ResponseError, ServerSocket};
 use async_lsp::lsp_types::{
     ClientCapabilities, DidOpenTextDocumentParams, DocumentSymbolParams, DocumentSymbolResponse,
     GotoDefinitionParams, GotoDefinitionResponse, HoverContents, HoverParams, InitializeParams,
-    InitializedParams, LogMessageParams, MarkedString, NumberOrString, Position, ProgressParams,
+    InitializedParams, LogMessageParams, NumberOrString, Position, ProgressParams,
     ProgressParamsValue, PublishDiagnosticsParams, ReferenceContext, ReferenceParams,
     ShowMessageParams, TextDocumentIdentifier, TextDocumentItem, TextDocumentPositionParams, Url,
     WindowClientCapabilities, WorkDoneProgress, WorkDoneProgressCreateParams, WorkspaceFolder,
@@ -23,7 +23,8 @@ use async_lsp::lsp_types::{
 use futures::channel::oneshot;
 use tower::ServiceBuilder;
 
-use super::types::{LspReference, LspServerConfig, LspSymbol, LspSymbolKind};
+use super::convert::{convert_symbol_response, marked_string_to_string};
+use super::types::{LspReference, LspServerConfig, LspSymbol};
 
 /// Known rust-analyzer indexing progress tokens
 const RA_INDEXING_TOKENS: &[&str] = &["rustAnalyzer/Indexing", "rustAnalyzer/cachePriming"];
@@ -41,17 +42,18 @@ impl LanguageClient for ClientState {
     type NotifyResult = ControlFlow<async_lsp::Result<()>>;
 
     fn progress(&mut self, params: ProgressParams) -> Self::NotifyResult {
-        // Check if indexing is complete - combined condition to satisfy collapsible_if lint
+        // Check if indexing is complete
         let is_indexing_token = matches!(&params.token, NumberOrString::String(s) if RA_INDEXING_TOKENS.contains(&&**s));
         let is_end_progress = matches!(
             params.value,
             ProgressParamsValue::WorkDone(WorkDoneProgress::End(_))
         );
 
-        if is_indexing_token && is_end_progress {
-            if let Some(tx) = self.indexed_tx.take() {
-                let _ = tx.send(());
-            }
+        if is_indexing_token
+            && is_end_progress
+            && let Some(tx) = self.indexed_tx.take()
+        {
+            let _ = tx.send(());
         }
         ControlFlow::Continue(())
     }
@@ -224,7 +226,14 @@ impl LspClient {
     /// Returns an error if the request fails.
     pub async fn document_symbols(&mut self, file_uri: &str) -> Result<Vec<LspSymbol>> {
         let url = Url::parse(file_uri)?;
+        let symbols = self.fetch_document_symbols(&url).await?;
+        Ok(convert_symbol_response(symbols))
+    }
 
+    async fn fetch_document_symbols(
+        &mut self,
+        url: &Url,
+    ) -> Result<Option<DocumentSymbolResponse>> {
         let params = DocumentSymbolParams {
             text_document: TextDocumentIdentifier { uri: url.clone() },
             work_done_progress_params: Default::default(),
@@ -234,29 +243,7 @@ impl LspClient {
         tracing::debug!("Requesting document symbols for: {}", url);
         let response = self.server.document_symbol(params).await?;
         tracing::debug!("Got response for {}: {:?}", url, response.is_some());
-
-        let symbols = match response {
-            Some(DocumentSymbolResponse::Flat(symbols)) => {
-                tracing::debug!("Got {} flat symbols from LSP", symbols.len());
-                symbols
-                    .into_iter()
-                    .map(|s| self.convert_symbol_information(&s))
-                    .collect()
-            }
-            Some(DocumentSymbolResponse::Nested(symbols)) => {
-                tracing::debug!("Got {} nested symbols from LSP", symbols.len());
-                symbols
-                    .into_iter()
-                    .map(|s| self.convert_document_symbol(&s))
-                    .collect()
-            }
-            None => {
-                tracing::debug!("LSP returned None for document symbols");
-                vec![]
-            }
-        };
-
-        Ok(symbols)
+        Ok(response)
     }
 
     /// Find all references to a symbol at a position
@@ -380,12 +367,9 @@ impl LspClient {
         let response = self.server.hover(params).await?;
 
         let content = response.and_then(|hover| match hover.contents {
-            HoverContents::Scalar(marked) => Some(Self::marked_string_to_string(marked)),
+            HoverContents::Scalar(marked) => Some(marked_string_to_string(marked)),
             HoverContents::Array(items) => {
-                let text: Vec<String> = items
-                    .into_iter()
-                    .map(Self::marked_string_to_string)
-                    .collect();
+                let text: Vec<String> = items.into_iter().map(marked_string_to_string).collect();
                 if text.is_empty() {
                     None
                 } else {
@@ -396,14 +380,6 @@ impl LspClient {
         });
 
         Ok(content)
-    }
-
-    /// Convert a MarkedString to a plain String
-    fn marked_string_to_string(marked: MarkedString) -> String {
-        match marked {
-            MarkedString::String(s) => s,
-            MarkedString::LanguageString(ls) => ls.value,
-        }
     }
 
     /// Notify the server that a file was opened
@@ -434,81 +410,5 @@ impl LspClient {
         self.server.exit(())?;
         self.server.emit(Stop)?;
         Ok(())
-    }
-
-    // Conversion helpers
-
-    fn convert_document_symbol(&self, symbol: &async_lsp::lsp_types::DocumentSymbol) -> LspSymbol {
-        let children = symbol
-            .children
-            .as_ref()
-            .map(|c| c.iter().map(|s| self.convert_document_symbol(s)).collect())
-            .unwrap_or_default();
-
-        LspSymbol {
-            name: symbol.name.clone(),
-            kind: self.convert_symbol_kind(symbol.kind),
-            detail: symbol.detail.clone(),
-            container_name: None, // Nested format uses explicit children instead
-            file: std::path::PathBuf::new(), // DocumentSymbol doesn't include file
-            start_line: symbol.range.start.line,
-            end_line: symbol.range.end.line,
-            start_col: symbol.range.start.character,
-            end_col: symbol.range.end.character,
-            children,
-        }
-    }
-
-    fn convert_symbol_information(
-        &self,
-        symbol: &async_lsp::lsp_types::SymbolInformation,
-    ) -> LspSymbol {
-        #[allow(deprecated)]
-        let container_name = symbol.container_name.clone();
-        LspSymbol {
-            name: symbol.name.clone(),
-            kind: self.convert_symbol_kind(symbol.kind),
-            detail: None,
-            container_name,
-            file: Path::new(symbol.location.uri.path()).to_path_buf(),
-            start_line: symbol.location.range.start.line,
-            end_line: symbol.location.range.end.line,
-            start_col: symbol.location.range.start.character,
-            end_col: symbol.location.range.end.character,
-            children: vec![],
-        }
-    }
-
-    fn convert_symbol_kind(&self, kind: async_lsp::lsp_types::SymbolKind) -> LspSymbolKind {
-        use async_lsp::lsp_types::SymbolKind;
-        match kind {
-            SymbolKind::FILE => LspSymbolKind::File,
-            SymbolKind::MODULE => LspSymbolKind::Module,
-            SymbolKind::NAMESPACE => LspSymbolKind::Namespace,
-            SymbolKind::PACKAGE => LspSymbolKind::Package,
-            SymbolKind::CLASS => LspSymbolKind::Class,
-            SymbolKind::METHOD => LspSymbolKind::Method,
-            SymbolKind::PROPERTY => LspSymbolKind::Property,
-            SymbolKind::FIELD => LspSymbolKind::Field,
-            SymbolKind::CONSTRUCTOR => LspSymbolKind::Constructor,
-            SymbolKind::ENUM => LspSymbolKind::Enum,
-            SymbolKind::INTERFACE => LspSymbolKind::Interface,
-            SymbolKind::FUNCTION => LspSymbolKind::Function,
-            SymbolKind::VARIABLE => LspSymbolKind::Variable,
-            SymbolKind::CONSTANT => LspSymbolKind::Constant,
-            SymbolKind::STRING => LspSymbolKind::String,
-            SymbolKind::NUMBER => LspSymbolKind::Number,
-            SymbolKind::BOOLEAN => LspSymbolKind::Boolean,
-            SymbolKind::ARRAY => LspSymbolKind::Array,
-            SymbolKind::OBJECT => LspSymbolKind::Object,
-            SymbolKind::KEY => LspSymbolKind::Key,
-            SymbolKind::NULL => LspSymbolKind::Null,
-            SymbolKind::ENUM_MEMBER => LspSymbolKind::EnumMember,
-            SymbolKind::STRUCT => LspSymbolKind::Struct,
-            SymbolKind::EVENT => LspSymbolKind::Event,
-            SymbolKind::OPERATOR => LspSymbolKind::Operator,
-            SymbolKind::TYPE_PARAMETER => LspSymbolKind::TypeParameter,
-            _ => LspSymbolKind::Variable,
-        }
     }
 }

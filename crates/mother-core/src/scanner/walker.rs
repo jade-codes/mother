@@ -1,8 +1,10 @@
 //! File walker: Discovers files in a directory tree
 
+use std::fs;
 use std::path::{Path, PathBuf};
 
 use ignore::WalkBuilder;
+use sha2::{Digest, Sha256};
 
 use super::Language;
 
@@ -11,6 +13,20 @@ use super::Language;
 pub struct DiscoveredFile {
     pub path: PathBuf,
     pub language: Language,
+}
+
+impl DiscoveredFile {
+    /// Compute SHA-256 hash of the file's contents
+    ///
+    /// # Errors
+    /// Returns an error if the file cannot be read.
+    pub fn compute_hash(&self) -> std::io::Result<String> {
+        let contents = fs::read(&self.path)?;
+        let mut hasher = Sha256::new();
+        hasher.update(&contents);
+        let result = hasher.finalize();
+        Ok(format!("{:x}", result))
+    }
 }
 
 /// Scanner for discovering source files in a directory

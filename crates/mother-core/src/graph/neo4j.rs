@@ -5,8 +5,7 @@ use std::sync::Arc;
 use neo4rs::{ConfigBuilder, Graph, Query};
 use thiserror::Error;
 
-use super::model::{Edge, SymbolNode};
-use crate::version::ScanRun;
+use super::model::{Edge, ScanRun, SymbolNode};
 
 /// Errors that can occur during Neo4j operations
 #[derive(Debug, Error)]

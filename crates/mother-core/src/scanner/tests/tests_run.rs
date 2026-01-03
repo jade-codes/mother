@@ -1,6 +1,6 @@
 //! Tests for scan run
 
-use crate::version::ScanRun;
+use crate::graph::model::ScanRun;
 
 #[test]
 fn test_scan_run_creation() {

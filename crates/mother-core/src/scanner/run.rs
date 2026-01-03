@@ -1,25 +1,9 @@
-//! Scan run: A versioned snapshot of a repository scan
+//! Scan run builder and git integration
 
-use chrono::{DateTime, Utc};
-use serde::{Deserialize, Serialize};
+use chrono::Utc;
 use uuid::Uuid;
 
-/// A versioned scan run
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ScanRun {
-    /// Unique identifier for this scan run
-    pub id: String,
-    /// Path to the repository
-    pub repo_path: String,
-    /// Git commit SHA (if available)
-    pub commit_sha: Option<String>,
-    /// Git branch (if available)
-    pub branch: Option<String>,
-    /// When the scan was performed
-    pub scanned_at: DateTime<Utc>,
-    /// User-provided version tag
-    pub version: Option<String>,
-}
+use crate::graph::model::ScanRun;
 
 impl ScanRun {
     /// Create a new scan run
