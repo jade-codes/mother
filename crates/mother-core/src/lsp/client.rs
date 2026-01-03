@@ -14,10 +14,10 @@ use async_lsp::{LanguageClient, LanguageServer, ResponseError, ServerSocket};
 // Use lsp_types re-exported from async_lsp to avoid version mismatch
 use async_lsp::lsp_types::{
     ClientCapabilities, DidOpenTextDocumentParams, DocumentSymbolParams, DocumentSymbolResponse,
-    GotoDefinitionParams, GotoDefinitionResponse, InitializeParams, InitializedParams,
-    LogMessageParams, NumberOrString, Position, ProgressParams, ProgressParamsValue,
-    PublishDiagnosticsParams, ReferenceContext, ReferenceParams, ShowMessageParams,
-    TextDocumentIdentifier, TextDocumentItem, TextDocumentPositionParams, Url,
+    GotoDefinitionParams, GotoDefinitionResponse, HoverContents, HoverParams, InitializeParams,
+    InitializedParams, LogMessageParams, MarkedString, NumberOrString, Position, ProgressParams,
+    ProgressParamsValue, PublishDiagnosticsParams, ReferenceContext, ReferenceParams,
+    ShowMessageParams, TextDocumentIdentifier, TextDocumentItem, TextDocumentPositionParams, Url,
     WindowClientCapabilities, WorkDoneProgress, WorkDoneProgressCreateParams, WorkspaceFolder,
 };
 use futures::channel::oneshot;
@@ -353,6 +353,57 @@ impl LspClient {
             .collect();
 
         Ok(refs)
+    }
+
+    /// Get hover information for a symbol at a position
+    ///
+    /// Returns the hover content as a string, or None if no hover info is available.
+    ///
+    /// # Errors
+    /// Returns an error if the request fails.
+    pub async fn hover(
+        &mut self,
+        file_uri: &str,
+        line: u32,
+        character: u32,
+    ) -> Result<Option<String>> {
+        let url = Url::parse(file_uri)?;
+
+        let params = HoverParams {
+            text_document_position_params: TextDocumentPositionParams {
+                text_document: TextDocumentIdentifier { uri: url },
+                position: Position::new(line, character),
+            },
+            work_done_progress_params: Default::default(),
+        };
+
+        let response = self.server.hover(params).await?;
+
+        let content = response.and_then(|hover| match hover.contents {
+            HoverContents::Scalar(marked) => Some(Self::marked_string_to_string(marked)),
+            HoverContents::Array(items) => {
+                let text: Vec<String> = items
+                    .into_iter()
+                    .map(Self::marked_string_to_string)
+                    .collect();
+                if text.is_empty() {
+                    None
+                } else {
+                    Some(text.join("\n\n"))
+                }
+            }
+            HoverContents::Markup(markup) => Some(markup.value),
+        });
+
+        Ok(content)
+    }
+
+    /// Convert a MarkedString to a plain String
+    fn marked_string_to_string(marked: MarkedString) -> String {
+        match marked {
+            MarkedString::String(s) => s,
+            MarkedString::LanguageString(ls) => ls.value,
+        }
     }
 
     /// Notify the server that a file was opened

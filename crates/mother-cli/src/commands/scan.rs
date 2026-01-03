@@ -185,8 +185,24 @@ pub async fn run(
         };
 
         // Convert LSP symbols to graph nodes
-        let symbols = convert_symbols(&lsp_symbols, &file_info.path);
+        let mut symbols = convert_symbols(&lsp_symbols, &file_info.path);
         let file_symbol_count = symbols.len();
+
+        // Collect flat list of (start_line, start_col) from LSP symbols for hover
+        let lsp_positions = collect_lsp_symbol_positions(&lsp_symbols);
+
+        // Enrich symbols with hover information (doc comments, etc.)
+        for (i, symbol) in symbols.iter_mut().enumerate() {
+            // Get the original column position from LSP symbol
+            let col = lsp_positions.get(i).map(|p| p.1).unwrap_or(0);
+            // Use 0-indexed line for hover (symbol.start_line is 1-indexed)
+            if let Ok(Some(hover_content)) = lsp_client
+                .hover(&file_info.file_uri, symbol.start_line - 1, col)
+                .await
+            {
+                symbol.doc_comment = Some(hover_content);
+            }
+        }
 
         tracing::info!(
             "  {} → {} symbols (from {} lsp symbols)",
@@ -365,4 +381,24 @@ struct SymbolInfo {
     end_line: u32,
     start_col: u32,
     language: mother_core::scanner::Language,
+}
+
+/// Collect (start_line, start_col) positions from flattened LSP symbols
+/// for use with hover requests
+fn collect_lsp_symbol_positions(
+    lsp_symbols: &[mother_core::lsp::LspSymbol],
+) -> Vec<(u32, u32)> {
+    fn flatten_positions(
+        symbols: &[mother_core::lsp::LspSymbol],
+        out: &mut Vec<(u32, u32)>,
+    ) {
+        for sym in symbols {
+            out.push((sym.start_line, sym.start_col));
+            flatten_positions(&sym.children, out);
+        }
+    }
+
+    let mut result = Vec::new();
+    flatten_positions(lsp_symbols, &mut result);
+    result
 }

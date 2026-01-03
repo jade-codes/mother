@@ -60,7 +60,7 @@ pub struct Neo4jClient {
 }
 
 impl Neo4jClient {
-    /// Connect to Neo4j
+    /// Connect to Neo4j and ensure indexes exist
     ///
     /// # Errors
     /// Returns an error if the connection fails.
@@ -79,9 +79,31 @@ impl Neo4jClient {
             .map_err(|e| Neo4jError::Connection(e.to_string()))?;
         let graph = Graph::connect(neo_config).await?;
 
-        Ok(Self {
+        let client = Self {
             graph: Arc::new(graph),
-        })
+        };
+
+        // Ensure indexes exist for performant queries
+        client.ensure_indexes().await?;
+
+        Ok(client)
+    }
+
+    /// Create indexes if they don't exist
+    async fn ensure_indexes(&self) -> Result<(), Neo4jError> {
+        let indexes = [
+            "CREATE INDEX commit_sha IF NOT EXISTS FOR (c:Commit) ON (c.sha)",
+            "CREATE INDEX file_path_hash IF NOT EXISTS FOR (f:File) ON (f.path, f.content_hash)",
+            "CREATE INDEX symbol_name IF NOT EXISTS FOR (s:Symbol) ON (s.name)",
+            "CREATE INDEX symbol_id IF NOT EXISTS FOR (s:Symbol) ON (s.id)",
+            "CREATE INDEX symbol_file_path IF NOT EXISTS FOR (s:Symbol) ON (s.file_path)",
+        ];
+
+        for index_stmt in indexes {
+            self.graph.run(Query::new(index_stmt.to_string())).await?;
+        }
+
+        Ok(())
     }
 
     /// Create a new scan run and link it to a commit
