@@ -18,6 +18,7 @@ use super::{FileToProcess, SymbolInfo};
 pub struct Phase2Result {
     pub symbols: Vec<SymbolInfo>,
     pub symbol_count: usize,
+    pub error_count: usize,
 }
 
 /// Run Phase 2: Extract symbols from files
@@ -28,25 +29,51 @@ pub async fn run(
 ) -> Result<Phase2Result> {
     info!("Phase 2: Extracting symbols from {} files...", files.len());
 
-    let mut symbol_count = 0;
-    let mut all_symbols: Vec<SymbolInfo> = Vec::new();
+    let mut result = Phase2Result {
+        symbols: Vec::new(),
+        symbol_count: 0,
+        error_count: 0,
+    };
 
     for file_info in files {
-        match process_file(file_info, client, lsp_manager).await {
-            Ok((symbols, count)) => {
-                all_symbols.extend(symbols);
-                symbol_count += count;
-            }
-            Err(e) => {
-                tracing::debug!("Skipping file {}: {}", file_info.path.display(), e);
-            }
-        }
+        let outcome = process_file(file_info, client, lsp_manager).await;
+        handle_file_result(outcome, file_info, &mut result);
     }
 
-    Ok(Phase2Result {
-        symbols: all_symbols,
-        symbol_count,
-    })
+    log_phase2_errors(&result);
+    Ok(result)
+}
+
+/// Handle the result of processing a single file
+fn handle_file_result(
+    outcome: Result<(Vec<SymbolInfo>, usize)>,
+    file_info: &FileToProcess,
+    result: &mut Phase2Result,
+) {
+    match outcome {
+        Ok((symbols, count)) => {
+            result.symbols.extend(symbols);
+            result.symbol_count += count;
+        }
+        Err(e) => {
+            result.error_count += 1;
+            tracing::warn!(
+                "Failed to extract symbols from {}: {}",
+                file_info.path.display(),
+                e
+            );
+        }
+    }
+}
+
+/// Log error summary for phase 2
+fn log_phase2_errors(result: &Phase2Result) {
+    if result.error_count > 0 {
+        tracing::warn!(
+            "Phase 2: {} files failed symbol extraction",
+            result.error_count
+        );
+    }
 }
 
 /// Process a single file for phase 2 (symbol extraction)

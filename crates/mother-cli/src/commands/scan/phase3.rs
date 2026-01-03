@@ -13,6 +13,7 @@ use super::SymbolInfo;
 /// Results from Phase 3
 pub struct Phase3Result {
     pub reference_count: usize,
+    pub error_count: usize,
 }
 
 /// Run Phase 3: Extract references and create edges
@@ -28,25 +29,36 @@ pub async fn run(
 
     let symbols_by_file = build_symbol_lookup_table(symbols);
     let mut reference_count = 0;
+    let mut error_count = 0;
 
     for symbol_info in symbols {
-        reference_count +=
+        let (refs, errors) =
             process_symbol_references(symbol_info, &symbols_by_file, client, lsp_manager).await;
+        reference_count += refs;
+        error_count += errors;
     }
 
-    Ok(Phase3Result { reference_count })
+    if error_count > 0 {
+        tracing::warn!("Phase 3: {} reference lookups failed", error_count);
+    }
+
+    Ok(Phase3Result {
+        reference_count,
+        error_count,
+    })
 }
 
 /// Process references for a single symbol
+/// Returns (reference_count, error_count)
 async fn process_symbol_references(
     symbol_info: &SymbolInfo,
     symbols_by_file: &HashMap<String, Vec<(String, u32, u32)>>,
     client: &Neo4jClient,
     lsp_manager: &mut LspServerManager,
-) -> usize {
+) -> (usize, usize) {
     let lsp_client = match lsp_manager.get_client(symbol_info.language).await {
         Ok(c) => c,
-        Err(_) => return 0,
+        Err(_) => return (0, 1),
     };
 
     let refs = match lsp_client
@@ -59,10 +71,13 @@ async fn process_symbol_references(
         .await
     {
         Ok(r) => r,
-        Err(_) => return 0,
+        Err(_) => return (0, 1),
     };
 
-    create_reference_edges(&refs, symbol_info, symbols_by_file, client).await
+    (
+        create_reference_edges(&refs, symbol_info, symbols_by_file, client).await,
+        0,
+    )
 }
 
 /// Build a lookup table from file path to symbols in that file

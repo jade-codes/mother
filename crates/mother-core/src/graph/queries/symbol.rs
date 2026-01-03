@@ -54,7 +54,9 @@ impl Neo4jClient {
         Ok(())
     }
 
-    /// Create multiple symbols for a file
+    /// Create multiple symbols for a file using batch UNWIND
+    ///
+    /// This is more efficient than individual creates as it uses a single query.
     ///
     /// # Errors
     /// Returns an error if the query fails.
@@ -63,9 +65,74 @@ impl Neo4jClient {
         symbols: &[SymbolNode],
         content_hash: &str,
     ) -> Result<(), Neo4jError> {
-        for symbol in symbols {
-            self.create_symbol(symbol, content_hash).await?;
+        if symbols.is_empty() {
+            return Ok(());
         }
+
+        // Convert symbols to a list of maps for UNWIND
+        let symbol_data: Vec<std::collections::HashMap<&str, neo4rs::BoltType>> = symbols
+            .iter()
+            .map(|s| {
+                let mut map = std::collections::HashMap::new();
+                map.insert("id", neo4rs::BoltType::String(s.id.clone().into()));
+                map.insert("name", neo4rs::BoltType::String(s.name.clone().into()));
+                map.insert(
+                    "qualified_name",
+                    neo4rs::BoltType::String(s.qualified_name.clone().into()),
+                );
+                map.insert("kind", neo4rs::BoltType::String(s.kind.to_string().into()));
+                map.insert(
+                    "visibility",
+                    neo4rs::BoltType::String(s.visibility.clone().unwrap_or_default().into()),
+                );
+                map.insert(
+                    "file_path",
+                    neo4rs::BoltType::String(s.file_path.clone().into()),
+                );
+                map.insert(
+                    "start_line",
+                    neo4rs::BoltType::Integer((s.start_line as i64).into()),
+                );
+                map.insert(
+                    "end_line",
+                    neo4rs::BoltType::Integer((s.end_line as i64).into()),
+                );
+                map.insert(
+                    "signature",
+                    neo4rs::BoltType::String(s.signature.clone().unwrap_or_default().into()),
+                );
+                map.insert(
+                    "doc_comment",
+                    neo4rs::BoltType::String(s.doc_comment.clone().unwrap_or_default().into()),
+                );
+                map
+            })
+            .collect();
+
+        let query = Query::new(
+            r#"
+            MATCH (f:File {content_hash: $content_hash})
+            UNWIND $symbols AS sym
+            CREATE (s:Symbol {
+                id: sym.id,
+                name: sym.name,
+                qualified_name: sym.qualified_name,
+                kind: sym.kind,
+                visibility: sym.visibility,
+                file_path: sym.file_path,
+                start_line: sym.start_line,
+                end_line: sym.end_line,
+                signature: sym.signature,
+                doc_comment: sym.doc_comment
+            })
+            CREATE (s)-[:DEFINED_IN]->(f)
+            "#
+            .to_string(),
+        )
+        .param("content_hash", content_hash)
+        .param("symbols", symbol_data);
+
+        self.graph().run(query).await?;
         Ok(())
     }
 
