@@ -256,13 +256,13 @@ fn test_single_symbol_batch() {
         signature: Some("fn func1()".to_string()),
         doc_comment: None,
     };
-    let symbols = vec![symbol];
+    let symbols = [symbol];
     assert_eq!(symbols.len(), 1);
 }
 
 #[test]
 fn test_multiple_symbol_batch() {
-    let symbols = vec![
+    let symbols = [
         SymbolNode {
             id: "sym_1".to_string(),
             name: "func1".to_string(),
@@ -466,7 +466,7 @@ fn test_symbol_kind_display_all() {
 
 #[test]
 fn test_all_edge_kinds() {
-    let kinds = vec![
+    let kinds = [
         EdgeKind::Calls,
         EdgeKind::References,
         EdgeKind::Imports,
@@ -518,10 +518,11 @@ fn test_symbol_kind_serde() {
     use serde_json;
 
     let kind = SymbolKind::Function;
-    let json = serde_json::to_string(&kind).unwrap();
+    let json = serde_json::to_string(&kind).expect("Failed to serialize SymbolKind");
     assert_eq!(json, "\"function\"");
 
-    let deserialized: SymbolKind = serde_json::from_str(&json).unwrap();
+    let deserialized: SymbolKind =
+        serde_json::from_str(&json).expect("Failed to deserialize SymbolKind");
     assert_eq!(deserialized, SymbolKind::Function);
 }
 
@@ -530,10 +531,11 @@ fn test_edge_kind_serde() {
     use serde_json;
 
     let kind = EdgeKind::Calls;
-    let json = serde_json::to_string(&kind).unwrap();
+    let json = serde_json::to_string(&kind).expect("Failed to serialize EdgeKind");
     assert_eq!(json, "\"CALLS\"");
 
-    let deserialized: EdgeKind = serde_json::from_str(&json).unwrap();
+    let deserialized: EdgeKind =
+        serde_json::from_str(&json).expect("Failed to deserialize EdgeKind");
     assert_eq!(deserialized, EdgeKind::Calls);
 }
 
@@ -554,8 +556,9 @@ fn test_symbol_node_serde() {
         doc_comment: Some("Test".to_string()),
     };
 
-    let json = serde_json::to_string(&symbol).unwrap();
-    let deserialized: SymbolNode = serde_json::from_str(&json).unwrap();
+    let json = serde_json::to_string(&symbol).expect("Failed to serialize SymbolNode");
+    let deserialized: SymbolNode =
+        serde_json::from_str(&json).expect("Failed to deserialize SymbolNode");
 
     assert_eq!(deserialized.id, symbol.id);
     assert_eq!(deserialized.name, symbol.name);
@@ -574,8 +577,8 @@ fn test_edge_serde() {
         column: Some(10),
     };
 
-    let json = serde_json::to_string(&edge).unwrap();
-    let deserialized: Edge = serde_json::from_str(&json).unwrap();
+    let json = serde_json::to_string(&edge).expect("Failed to serialize Edge");
+    let deserialized: Edge = serde_json::from_str(&json).expect("Failed to deserialize Edge");
 
     assert_eq!(deserialized.source_id, edge.source_id);
     assert_eq!(deserialized.target_id, edge.target_id);
@@ -597,8 +600,8 @@ fn test_scan_run_serde() {
         version: Some("v1.0.0".to_string()),
     };
 
-    let json = serde_json::to_string(&scan_run).unwrap();
-    let deserialized: ScanRun = serde_json::from_str(&json).unwrap();
+    let json = serde_json::to_string(&scan_run).expect("Failed to serialize ScanRun");
+    let deserialized: ScanRun = serde_json::from_str(&json).expect("Failed to deserialize ScanRun");
 
     assert_eq!(deserialized.id, scan_run.id);
     assert_eq!(deserialized.repo_path, scan_run.repo_path);
