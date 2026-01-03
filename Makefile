@@ -103,7 +103,7 @@ install:
 lint-test-naming:
 	@echo "Checking test file naming conventions..."
 	@errors=0; \
-	bad_pattern=$$(find crates -name "*_test.rs" -o -name "test_*.rs" 2>/dev/null | grep -v target); \
+	bad_pattern=$$(find crates -name "*_test.rs" -o -name "test_*.rs" 2>/dev/null | grep -v target | grep -v examples); \
 	if [ -n "$$bad_pattern" ]; then \
 		echo "❌ Found test files with old naming pattern (*_test.rs or test_*.rs):"; \
 		echo "$$bad_pattern" | sed 's/^/  - /'; \

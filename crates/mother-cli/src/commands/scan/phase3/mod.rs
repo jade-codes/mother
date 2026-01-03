@@ -137,3 +137,6 @@ async fn create_reference_edge(
     };
     client.create_edge(&edge).await.is_ok()
 }
+
+#[cfg(test)]
+mod tests;
