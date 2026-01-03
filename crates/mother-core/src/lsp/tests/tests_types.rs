@@ -1,5 +1,7 @@
 //! Tests for LSP types
 
+#![allow(clippy::expect_used)]
+
 use crate::lsp::types::LspSymbolKind;
 
 #[test]
