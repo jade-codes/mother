@@ -15,9 +15,10 @@ use async_lsp::{LanguageClient, LanguageServer, ResponseError, ServerSocket};
 use async_lsp::lsp_types::{
     ClientCapabilities, DidOpenTextDocumentParams, DocumentSymbolParams, DocumentSymbolResponse,
     GotoDefinitionParams, GotoDefinitionResponse, InitializeParams, InitializedParams,
-    NumberOrString, Position, ProgressParams, ProgressParamsValue, PublishDiagnosticsParams,
-    ReferenceContext, ReferenceParams, ShowMessageParams, TextDocumentIdentifier, TextDocumentItem,
-    TextDocumentPositionParams, Url, WindowClientCapabilities, WorkDoneProgress, WorkspaceFolder,
+    LogMessageParams, NumberOrString, Position, ProgressParams, ProgressParamsValue,
+    PublishDiagnosticsParams, ReferenceContext, ReferenceParams, ShowMessageParams,
+    TextDocumentIdentifier, TextDocumentItem, TextDocumentPositionParams, Url,
+    WindowClientCapabilities, WorkDoneProgress, WorkspaceFolder,
 };
 use futures::channel::oneshot;
 use tower::ServiceBuilder;
@@ -61,6 +62,11 @@ impl LanguageClient for ClientState {
 
     fn show_message(&mut self, params: ShowMessageParams) -> Self::NotifyResult {
         tracing::debug!("LSP message {:?}: {}", params.typ, params.message);
+        ControlFlow::Continue(())
+    }
+
+    fn log_message(&mut self, params: LogMessageParams) -> Self::NotifyResult {
+        tracing::debug!("LSP log {:?}: {}", params.typ, params.message);
         ControlFlow::Continue(())
     }
 }
@@ -202,23 +208,34 @@ impl LspClient {
         let url = Url::parse(file_uri)?;
 
         let params = DocumentSymbolParams {
-            text_document: TextDocumentIdentifier { uri: url },
+            text_document: TextDocumentIdentifier { uri: url.clone() },
             work_done_progress_params: Default::default(),
             partial_result_params: Default::default(),
         };
 
+        tracing::debug!("Requesting document symbols for: {}", url);
         let response = self.server.document_symbol(params).await?;
+        tracing::debug!("Got response for {}: {:?}", url, response.is_some());
 
         let symbols = match response {
-            Some(DocumentSymbolResponse::Flat(symbols)) => symbols
-                .into_iter()
-                .map(|s| self.convert_symbol_information(&s))
-                .collect(),
-            Some(DocumentSymbolResponse::Nested(symbols)) => symbols
-                .into_iter()
-                .map(|s| self.convert_document_symbol(&s))
-                .collect(),
-            None => vec![],
+            Some(DocumentSymbolResponse::Flat(symbols)) => {
+                tracing::debug!("Got {} flat symbols from LSP", symbols.len());
+                symbols
+                    .into_iter()
+                    .map(|s| self.convert_symbol_information(&s))
+                    .collect()
+            }
+            Some(DocumentSymbolResponse::Nested(symbols)) => {
+                tracing::debug!("Got {} nested symbols from LSP", symbols.len());
+                symbols
+                    .into_iter()
+                    .map(|s| self.convert_document_symbol(&s))
+                    .collect()
+            }
+            None => {
+                tracing::debug!("LSP returned None for document symbols");
+                vec![]
+            }
         };
 
         Ok(symbols)

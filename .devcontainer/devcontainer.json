@@ -5,7 +5,10 @@
     "ghcr.io/devcontainers/features/github-cli:1": {
       "version": "latest"
     },
-    "ghcr.io/devcontainers/features/docker-outside-of-docker:1": {}
+    "ghcr.io/devcontainers/features/docker-outside-of-docker:1": {},
+    "ghcr.io/devcontainers/features/node:1": {
+      "version": "lts"
+    }
   },
   "customizations": {
     "vscode": {
@@ -26,6 +29,6 @@
     }
   },
   "forwardPorts": [7687, 7474],
-  "postCreateCommand": "rustc --version && cargo --version",
+  "postCreateCommand": "rustc --version && cargo --version && npm install -g typescript typescript-language-server && cargo install --git https://github.com/jade-codes/syster syster-lsp",
   "remoteUser": "vscode"
 }

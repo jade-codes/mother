@@ -41,13 +41,39 @@ impl LspServerDefaults {
                 root_path: root,
                 init_options: None,
             },
-            Language::SysML | Language::KerML => LspServerConfig {
-                language,
-                command: "syster-lsp".to_string(),
-                args: vec![],
-                root_path: root,
-                init_options: None,
-            },
+            Language::SysML | Language::KerML => {
+                // Find sysml.library in the project or use system default
+                let stdlib_path = root
+                    .join("crates/syster-base/sysml.library")
+                    .canonicalize()
+                    .ok()
+                    .or_else(|| {
+                        // Try relative to cargo install location
+                        std::env::current_exe()
+                            .ok()
+                            .and_then(|exe| exe.parent().map(|p| p.to_path_buf()))
+                            .and_then(|bin| bin.parent().map(|p| p.join("lib/sysml.library")))
+                    });
+
+                let init_options = if let Some(path) = stdlib_path {
+                    Some(serde_json::json!({
+                        "stdlibEnabled": true,
+                        "stdlibPath": path.display().to_string()
+                    }))
+                } else {
+                    Some(serde_json::json!({
+                        "stdlibEnabled": true
+                    }))
+                };
+
+                LspServerConfig {
+                    language,
+                    command: "syster-lsp".to_string(),
+                    args: vec![],
+                    root_path: root,
+                    init_options,
+                }
+            }
         }
     }
 }
