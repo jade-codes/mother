@@ -18,7 +18,7 @@ use async_lsp::lsp_types::{
     LogMessageParams, NumberOrString, Position, ProgressParams, ProgressParamsValue,
     PublishDiagnosticsParams, ReferenceContext, ReferenceParams, ShowMessageParams,
     TextDocumentIdentifier, TextDocumentItem, TextDocumentPositionParams, Url,
-    WindowClientCapabilities, WorkDoneProgress, WorkspaceFolder,
+    WindowClientCapabilities, WorkDoneProgress, WorkDoneProgressCreateParams, WorkspaceFolder,
 };
 use futures::channel::oneshot;
 use tower::ServiceBuilder;
@@ -69,6 +69,15 @@ impl LanguageClient for ClientState {
         tracing::debug!("LSP log {:?}: {}", params.typ, params.message);
         ControlFlow::Continue(())
     }
+
+    fn work_done_progress_create(
+        &mut self,
+        _params: WorkDoneProgressCreateParams,
+    ) -> std::pin::Pin<
+        Box<dyn std::future::Future<Output = Result<(), ResponseError>> + Send + 'static>,
+    > {
+        Box::pin(async { Ok(()) })
+    }
 }
 
 impl ClientState {
@@ -76,6 +85,9 @@ impl ClientState {
         let mut router = Router::from_language_client(ClientState {
             indexed_tx: Some(indexed_tx),
         });
+        router.request::<async_lsp::lsp_types::request::WorkDoneProgressCreate, _>(
+            Self::work_done_progress_create,
+        );
         router.event(Self::on_stop);
         router
     }
@@ -155,6 +167,11 @@ impl LspClient {
     pub async fn initialize(&mut self, root_uri: &str) -> Result<()> {
         let root_url = Url::parse(root_uri)?;
 
+        tracing::debug!(
+            "Initializing LSP with init_options: {:?}",
+            self.config.init_options
+        );
+
         #[allow(deprecated)]
         let params = InitializeParams {
             process_id: Some(std::process::id()),
@@ -170,6 +187,7 @@ impl LspClient {
                 }),
                 ..Default::default()
             },
+            initialization_options: self.config.init_options.clone(),
             ..Default::default()
         };
 
@@ -272,11 +290,13 @@ impl LspClient {
             .unwrap_or_default()
             .into_iter()
             .map(|loc| LspReference {
-                file: Path::new(loc.uri.path()).to_path_buf(),
+                file: loc
+                    .uri
+                    .to_file_path()
+                    .unwrap_or_else(|_| Path::new(loc.uri.path()).to_path_buf()),
                 line: loc.range.start.line,
                 start_col: loc.range.start.character,
                 end_col: loc.range.end.character,
-                is_definition: false,
             })
             .collect();
 
@@ -322,11 +342,13 @@ impl LspClient {
         let refs = locations
             .into_iter()
             .map(|loc| LspReference {
-                file: Path::new(loc.uri.path()).to_path_buf(),
+                file: loc
+                    .uri
+                    .to_file_path()
+                    .unwrap_or_else(|_| Path::new(loc.uri.path()).to_path_buf()),
                 line: loc.range.start.line,
                 start_col: loc.range.start.character,
                 end_col: loc.range.end.character,
-                is_definition: true,
             })
             .collect();
 

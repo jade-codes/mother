@@ -71,8 +71,6 @@ pub struct LspReference {
     pub start_col: u32,
     /// End column
     pub end_col: u32,
-    /// Whether this is the definition
-    pub is_definition: bool,
 }
 
 /// Configuration for an LSP server

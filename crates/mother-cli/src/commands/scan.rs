@@ -276,11 +276,6 @@ pub async fn run(
 
         // For each reference, find the containing symbol and create an edge
         for reference in &refs {
-            // Skip if this is the definition itself
-            if reference.is_definition {
-                continue;
-            }
-
             let ref_file = reference.file.display().to_string();
             let ref_line = reference.line;
 
@@ -293,6 +288,11 @@ pub async fn run(
                     .min_by_key(|(_, start, end)| end - start);
 
                 if let Some((from_id, _, _)) = containing_symbol {
+                    // Skip self-references (LSP may return definition as a reference)
+                    if from_id == &symbol_info.id {
+                        continue;
+                    }
+
                     // Create edge: from_symbol -[:REFERENCES]-> to_symbol (symbol_info)
                     if let Err(e) = client
                         .create_symbol_reference(
