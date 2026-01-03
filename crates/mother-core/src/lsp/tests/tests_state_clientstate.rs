@@ -13,6 +13,7 @@ use futures::channel::oneshot;
 use crate::lsp::state::ClientState;
 
 #[test]
+#[allow(clippy::expect_used)]
 fn test_progress_with_indexing_token_end() {
     // Test that progress with indexing token and End state triggers the oneshot
     let (tx, mut rx) = oneshot::channel();
@@ -29,11 +30,10 @@ fn test_progress_with_indexing_token_end() {
     assert!(matches!(result, ControlFlow::Continue(())));
 
     // Verify oneshot was triggered
-    match rx.try_recv() {
-        Ok(Some(())) => (),
-        Ok(None) => panic!("Channel was not triggered"),
-        Err(_) => panic!("Channel error"),
-    }
+    assert!(
+        matches!(rx.try_recv(), Ok(Some(()))),
+        "Channel should have been triggered"
+    );
 }
 
 #[test]
@@ -53,11 +53,10 @@ fn test_progress_with_cache_priming_token_end() {
     assert!(matches!(result, ControlFlow::Continue(())));
 
     // Verify oneshot was triggered
-    match rx.try_recv() {
-        Ok(Some(())) => (),
-        Ok(None) => panic!("Channel was not triggered"),
-        Err(_) => panic!("Channel error"),
-    }
+    assert!(
+        matches!(rx.try_recv(), Ok(Some(()))),
+        "Channel should have been triggered"
+    );
 }
 
 #[test]
@@ -77,11 +76,10 @@ fn test_progress_with_non_indexing_token() {
     assert!(matches!(result, ControlFlow::Continue(())));
 
     // Verify oneshot was NOT triggered
-    match rx.try_recv() {
-        Ok(None) => (),
-        Ok(Some(())) => panic!("Channel should not have been triggered"),
-        Err(e) => panic!("Unexpected channel error: {:?}", e),
-    }
+    assert!(
+        matches!(rx.try_recv(), Ok(None)),
+        "Channel should not have been triggered"
+    );
 }
 
 #[test]
@@ -104,11 +102,10 @@ fn test_progress_with_indexing_token_begin() {
     assert!(matches!(result, ControlFlow::Continue(())));
 
     // Verify oneshot was NOT triggered (Begin state doesn't trigger)
-    match rx.try_recv() {
-        Ok(None) => (),
-        Ok(Some(())) => panic!("Channel should not have been triggered for Begin state"),
-        Err(e) => panic!("Unexpected channel error: {:?}", e),
-    }
+    assert!(
+        matches!(rx.try_recv(), Ok(None)),
+        "Channel should not have been triggered for Begin state"
+    );
 }
 
 #[test]
@@ -128,11 +125,10 @@ fn test_progress_with_number_token() {
     assert!(matches!(result, ControlFlow::Continue(())));
 
     // Verify oneshot was NOT triggered (number tokens don't match)
-    match rx.try_recv() {
-        Ok(None) => (),
-        Ok(Some(())) => panic!("Channel should not have been triggered for number token"),
-        Err(e) => panic!("Unexpected channel error: {:?}", e),
-    }
+    assert!(
+        matches!(rx.try_recv(), Ok(None)),
+        "Channel should not have been triggered for number token"
+    );
 }
 
 #[test]
@@ -162,11 +158,10 @@ fn test_progress_multiple_calls_only_first_triggers() {
     assert!(matches!(result2, ControlFlow::Continue(())));
 
     // Verify only one signal was sent
-    match rx.try_recv() {
-        Ok(Some(())) => (),
-        Ok(None) => panic!("Channel was not triggered"),
-        Err(_) => panic!("Channel error"),
-    }
+    assert!(
+        matches!(rx.try_recv(), Ok(Some(()))),
+        "Channel should have been triggered once"
+    );
 }
 
 #[test]
@@ -187,13 +182,14 @@ fn test_progress_with_no_sender() {
 }
 
 #[test]
+#[allow(clippy::expect_used)]
 fn test_publish_diagnostics_returns_continue() {
     // Test that publish_diagnostics returns Continue
     let (tx, _rx) = oneshot::channel();
     let mut state = ClientState::new_for_test(Some(tx));
 
     let params = PublishDiagnosticsParams {
-        uri: "file:///test.rs".parse().unwrap(),
+        uri: "file:///test.rs".parse().expect("valid URI"),
         diagnostics: vec![],
         version: None,
     };

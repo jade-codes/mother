@@ -1,5 +1,7 @@
 //! Test script to debug SysML LSP references
-//! Run with: cargo run --example test_sysml_references -p mother-core
+//! Run with: cargo run --example debug_sysml_references -p mother-core
+
+#![allow(clippy::print_stdout)]
 
 use mother_core::lsp::{LspClient, LspServerConfig, LspSymbol};
 use mother_core::scanner::Language;
