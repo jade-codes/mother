@@ -1,5 +1,7 @@
 //! Tests for Neo4j client
 
+#![allow(clippy::expect_used)] // expect is acceptable in tests
+
 use crate::graph::model::{Edge, EdgeKind, ScanRun, SymbolKind, SymbolNode};
 use crate::graph::neo4j::{Neo4jConfig, Neo4jError};
 use chrono::Utc;

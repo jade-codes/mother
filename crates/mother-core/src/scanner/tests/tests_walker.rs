@@ -5,6 +5,7 @@ use std::fs;
 use tempfile::TempDir;
 
 #[test]
+#[allow(clippy::expect_used)] // expect is acceptable in tests
 fn test_scanner_finds_rust_files() {
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
     let src_dir = temp_dir.path().join("src");
@@ -22,6 +23,7 @@ fn test_scanner_finds_rust_files() {
 }
 
 #[test]
+#[allow(clippy::expect_used)] // expect is acceptable in tests
 fn test_scanner_with_language_filter() {
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
 
