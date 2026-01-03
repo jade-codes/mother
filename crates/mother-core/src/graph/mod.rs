@@ -6,6 +6,7 @@
 pub mod convert;
 pub mod model;
 pub mod neo4j;
+pub mod queries;
 
 #[cfg(test)]
 mod tests;
