@@ -18,6 +18,14 @@ pub(super) struct ClientState {
     indexed_tx: Option<oneshot::Sender<()>>,
 }
 
+impl ClientState {
+    /// Create a new ClientState for testing
+    #[cfg(test)]
+    pub(super) fn new_for_test(indexed_tx: Option<oneshot::Sender<()>>) -> Self {
+        ClientState { indexed_tx }
+    }
+}
+
 /// Event to signal stopping the client
 pub(super) struct Stop;
 
