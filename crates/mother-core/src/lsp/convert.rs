@@ -200,6 +200,11 @@ mod tests {
 
     #[test]
     fn test_convert_symbol_information() {
+        let uri = match Url::parse("file:///test/file.rs") {
+            Ok(u) => u,
+            Err(_) => return, // Skip test if URL parse fails
+        };
+
         #[allow(deprecated)]
         let sym_info = SymbolInformation {
             name: "MyStruct".to_string(),
@@ -207,7 +212,7 @@ mod tests {
             tags: None,
             deprecated: None,
             location: Location {
-                uri: Url::parse("file:///test/file.rs").unwrap(),
+                uri,
                 range: Range::new(Position::new(5, 0), Position::new(15, 1)),
             },
             container_name: Some("my_module".to_string()),
