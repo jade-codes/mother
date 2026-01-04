@@ -1,5 +1,8 @@
 //! Tests for Neo4jClient
 
+#![allow(clippy::unwrap_used)]
+#![allow(clippy::expect_used)]
+
 use chrono::Utc;
 use serial_test::serial;
 
@@ -126,7 +129,7 @@ async fn test_create_scan_run_new_commit() {
 
     let result = client.create_scan_run(&scan_run).await;
     assert!(result.is_ok());
-    assert_eq!(result.unwrap(), true); // New commit should return true
+    assert!(result.unwrap()); // New commit should return true
 
     cleanup_test_data(&client).await;
 }
@@ -149,7 +152,7 @@ async fn test_create_scan_run_existing_commit() {
     // First scan - should create new commit
     let result1 = client.create_scan_run(&scan_run1).await;
     assert!(result1.is_ok());
-    assert_eq!(result1.unwrap(), true);
+    assert!(result1.unwrap());
 
     // Second scan with same commit - should return false
     let scan_run2 = ScanRun {
@@ -163,7 +166,7 @@ async fn test_create_scan_run_existing_commit() {
 
     let result2 = client.create_scan_run(&scan_run2).await;
     assert!(result2.is_ok());
-    assert_eq!(result2.unwrap(), false); // Existing commit should return false
+    assert!(!result2.unwrap()); // Existing commit should return false
 
     cleanup_test_data(&client).await;
 }
@@ -185,7 +188,7 @@ async fn test_create_scan_run_empty_commit_sha() {
 
     let result = client.create_scan_run(&scan_run).await;
     assert!(result.is_ok());
-    assert_eq!(result.unwrap(), true); // Empty commit SHA should create new
+    assert!(result.unwrap()); // Empty commit SHA should create new
 
     cleanup_test_data(&client).await;
 }
