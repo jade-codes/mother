@@ -14,6 +14,9 @@
 #![allow(clippy::print_stderr)]
 #![allow(clippy::unwrap_used)]
 
+#![allow(clippy::unwrap_used)]
+#![allow(clippy::print_stderr)]
+
 use std::fs;
 use std::path::Path;
 use std::time::Duration;
@@ -60,6 +63,7 @@ edition = "2021"
 // ============================================================================
 
 #[tokio::test]
+#[ignore] // Requires rust-analyzer to be installed
 async fn test_rust_document_symbols() -> anyhow::Result<()> {
     if !command_exists("rust-analyzer") {
         eprintln!("Skipping test: rust-analyzer not found");
@@ -151,6 +155,7 @@ pub fn create_user(name: &str) -> User {
 }
 
 #[tokio::test]
+#[ignore] // Requires rust-analyzer to be installed
 async fn test_rust_references() -> anyhow::Result<()> {
     if !command_exists("rust-analyzer") {
         eprintln!("Skipping test: rust-analyzer not found");
@@ -224,6 +229,7 @@ pub fn caller_two() -> i32 {
 }
 
 #[tokio::test]
+#[ignore] // Requires rust-analyzer to be installed
 async fn test_rust_definition() -> anyhow::Result<()> {
     if !command_exists("rust-analyzer") {
         eprintln!("Skipping test: rust-analyzer not found");
@@ -668,6 +674,7 @@ func caller2() int {
 // ============================================================================
 
 #[tokio::test]
+#[ignore] // Requires rust-analyzer to be installed
 async fn test_rust_cross_file_references() -> anyhow::Result<()> {
     if !command_exists("rust-analyzer") {
         eprintln!("Skipping test: rust-analyzer not found");
