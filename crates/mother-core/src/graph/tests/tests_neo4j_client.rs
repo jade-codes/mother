@@ -1,6 +1,7 @@
 //! Tests for Neo4jClient
 
 use chrono::Utc;
+use serial_test::serial;
 
 use crate::graph::model::{Edge, EdgeKind, ScanRun, SymbolKind, SymbolNode};
 use crate::graph::neo4j::{Neo4jClient, Neo4jConfig};
@@ -9,9 +10,7 @@ use crate::graph::neo4j::{Neo4jClient, Neo4jConfig};
 async fn create_test_client() -> Neo4jClient {
     let config = Neo4jConfig::new("bolt://localhost:7687", "neo4j", "mother_dev_password");
 
-    Neo4jClient::connect(&config)
-        .await
-        .unwrap()
+    Neo4jClient::connect(&config).await.unwrap()
 }
 
 /// Helper to clean up test data after each test
@@ -32,6 +31,7 @@ async fn cleanup_test_data(client: &Neo4jClient) {
 }
 
 #[tokio::test]
+#[serial]
 async fn test_connect_success() {
     let config = Neo4jConfig::new("bolt://localhost:7687", "neo4j", "mother_dev_password");
 
@@ -40,6 +40,7 @@ async fn test_connect_success() {
 }
 
 #[tokio::test]
+#[serial]
 async fn test_connect_with_database() {
     let config = Neo4jConfig::new("bolt://localhost:7687", "neo4j", "mother_dev_password")
         .with_database("neo4j");
@@ -49,6 +50,7 @@ async fn test_connect_with_database() {
 }
 
 #[tokio::test]
+#[serial]
 async fn test_connect_invalid_credentials() {
     let config = Neo4jConfig::new("bolt://localhost:7687", "neo4j", "wrong_password");
 
@@ -57,6 +59,7 @@ async fn test_connect_invalid_credentials() {
 }
 
 #[tokio::test]
+#[serial]
 async fn test_connect_invalid_uri() {
     let config = Neo4jConfig::new("bolt://invalid-host:7687", "neo4j", "mother_dev_password");
 
@@ -65,6 +68,7 @@ async fn test_connect_invalid_uri() {
 }
 
 #[tokio::test]
+#[serial]
 async fn test_graph_accessor() {
     let client = create_test_client().await;
 
@@ -77,6 +81,7 @@ async fn test_graph_accessor() {
 }
 
 #[tokio::test]
+#[serial]
 async fn test_ensure_indexes_creates_indexes() {
     let client = create_test_client().await;
 
@@ -105,6 +110,7 @@ async fn test_ensure_indexes_creates_indexes() {
 }
 
 #[tokio::test]
+#[serial]
 async fn test_create_scan_run_new_commit() {
     let client = create_test_client().await;
     cleanup_test_data(&client).await;
@@ -126,6 +132,7 @@ async fn test_create_scan_run_new_commit() {
 }
 
 #[tokio::test]
+#[serial]
 async fn test_create_scan_run_existing_commit() {
     let client = create_test_client().await;
     cleanup_test_data(&client).await;
@@ -162,6 +169,7 @@ async fn test_create_scan_run_existing_commit() {
 }
 
 #[tokio::test]
+#[serial]
 async fn test_create_scan_run_empty_commit_sha() {
     let client = create_test_client().await;
     cleanup_test_data(&client).await;
@@ -183,6 +191,7 @@ async fn test_create_scan_run_empty_commit_sha() {
 }
 
 #[tokio::test]
+#[serial]
 async fn test_create_file_if_new() {
     let client = create_test_client().await;
     cleanup_test_data(&client).await;
@@ -197,10 +206,7 @@ async fn test_create_file_if_new() {
         version: Some("v1.0.0".to_string()),
     };
 
-    client
-        .create_scan_run(&scan_run)
-        .await
-        .unwrap();
+    client.create_scan_run(&scan_run).await.unwrap();
 
     // Create new file
     let result = client
@@ -214,6 +220,7 @@ async fn test_create_file_if_new() {
 }
 
 #[tokio::test]
+#[serial]
 async fn test_create_file_if_existing() {
     let client = create_test_client().await;
     cleanup_test_data(&client).await;
@@ -266,6 +273,7 @@ async fn test_create_file_if_existing() {
 }
 
 #[tokio::test]
+#[serial]
 async fn test_create_symbol() {
     let client = create_test_client().await;
     cleanup_test_data(&client).await;
@@ -280,10 +288,7 @@ async fn test_create_symbol() {
         version: Some("v1.0.0".to_string()),
     };
 
-    client
-        .create_scan_run(&scan_run)
-        .await
-        .unwrap();
+    client.create_scan_run(&scan_run).await.unwrap();
     client
         .create_file_if_new(
             "/test/file.rs",
@@ -315,6 +320,7 @@ async fn test_create_symbol() {
 }
 
 #[tokio::test]
+#[serial]
 async fn test_create_symbol_minimal() {
     let client = create_test_client().await;
     cleanup_test_data(&client).await;
@@ -329,10 +335,7 @@ async fn test_create_symbol_minimal() {
         version: Some("v1.0.0".to_string()),
     };
 
-    client
-        .create_scan_run(&scan_run)
-        .await
-        .unwrap();
+    client.create_scan_run(&scan_run).await.unwrap();
     client
         .create_file_if_new(
             "/test/file.rs",
@@ -364,6 +367,7 @@ async fn test_create_symbol_minimal() {
 }
 
 #[tokio::test]
+#[serial]
 async fn test_create_symbols_batch_empty() {
     let client = create_test_client().await;
 
@@ -374,6 +378,7 @@ async fn test_create_symbols_batch_empty() {
 }
 
 #[tokio::test]
+#[serial]
 async fn test_create_symbols_batch_single() {
     let client = create_test_client().await;
     cleanup_test_data(&client).await;
@@ -388,10 +393,7 @@ async fn test_create_symbols_batch_single() {
         version: Some("v1.0.0".to_string()),
     };
 
-    client
-        .create_scan_run(&scan_run)
-        .await
-        .unwrap();
+    client.create_scan_run(&scan_run).await.unwrap();
     client
         .create_file_if_new(
             "/test/file.rs",
@@ -425,6 +427,7 @@ async fn test_create_symbols_batch_single() {
 }
 
 #[tokio::test]
+#[serial]
 async fn test_create_symbols_batch_multiple() {
     let client = create_test_client().await;
     cleanup_test_data(&client).await;
@@ -439,10 +442,7 @@ async fn test_create_symbols_batch_multiple() {
         version: Some("v1.0.0".to_string()),
     };
 
-    client
-        .create_scan_run(&scan_run)
-        .await
-        .unwrap();
+    client.create_scan_run(&scan_run).await.unwrap();
     client
         .create_file_if_new(
             "/test/file.rs",
@@ -502,6 +502,7 @@ async fn test_create_symbols_batch_multiple() {
 }
 
 #[tokio::test]
+#[serial]
 async fn test_create_edge_calls() {
     let client = create_test_client().await;
     cleanup_test_data(&client).await;
@@ -516,10 +517,7 @@ async fn test_create_edge_calls() {
         version: Some("v1.0.0".to_string()),
     };
 
-    client
-        .create_scan_run(&scan_run)
-        .await
-        .unwrap();
+    client.create_scan_run(&scan_run).await.unwrap();
     client
         .create_file_if_new("/test/file.rs", "edge_hash_123", "rust", "edge_commit_123")
         .await
@@ -573,6 +571,7 @@ async fn test_create_edge_calls() {
 }
 
 #[tokio::test]
+#[serial]
 async fn test_create_edge_references() {
     let client = create_test_client().await;
     cleanup_test_data(&client).await;
@@ -587,10 +586,7 @@ async fn test_create_edge_references() {
         version: Some("v1.0.0".to_string()),
     };
 
-    client
-        .create_scan_run(&scan_run)
-        .await
-        .unwrap();
+    client.create_scan_run(&scan_run).await.unwrap();
     client
         .create_file_if_new("/test/file.rs", "edge_hash_456", "rust", "edge_commit_456")
         .await
@@ -644,6 +640,7 @@ async fn test_create_edge_references() {
 }
 
 #[tokio::test]
+#[serial]
 async fn test_create_edge_no_location() {
     let client = create_test_client().await;
     cleanup_test_data(&client).await;
@@ -658,10 +655,7 @@ async fn test_create_edge_no_location() {
         version: Some("v1.0.0".to_string()),
     };
 
-    client
-        .create_scan_run(&scan_run)
-        .await
-        .unwrap();
+    client.create_scan_run(&scan_run).await.unwrap();
     client
         .create_file_if_new("/test/file.rs", "edge_hash_789", "rust", "edge_commit_789")
         .await
@@ -715,6 +709,7 @@ async fn test_create_edge_no_location() {
 }
 
 #[tokio::test]
+#[serial]
 async fn test_create_edge_multiple_kinds() {
     let client = create_test_client().await;
     cleanup_test_data(&client).await;
@@ -729,10 +724,7 @@ async fn test_create_edge_multiple_kinds() {
         version: Some("v1.0.0".to_string()),
     };
 
-    client
-        .create_scan_run(&scan_run)
-        .await
-        .unwrap();
+    client.create_scan_run(&scan_run).await.unwrap();
     client
         .create_file_if_new(
             "/test/file.rs",
