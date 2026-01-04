@@ -30,7 +30,7 @@ pub(crate) use phase3::Phase3Result;
 // ============================================================================
 
 /// A file that needs symbol extraction (output from Phase 1)
-pub(crate) struct FileToProcess {
+pub struct FileToProcess {
     pub path: std::path::PathBuf,
     pub file_uri: String,
     pub content_hash: String,
@@ -38,7 +38,7 @@ pub(crate) struct FileToProcess {
 }
 
 /// Symbol position info for reference extraction (output from Phase 2)
-pub(crate) struct SymbolInfo {
+pub struct SymbolInfo {
     pub id: String,
     pub file_uri: String,
     pub start_line: u32,
