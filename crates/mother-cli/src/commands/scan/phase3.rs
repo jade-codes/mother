@@ -522,7 +522,7 @@ mod tests {
         #[test]
         fn test_edge_creation_preserves_ids() {
             let reference = make_reference("/src/main.rs", 10);
-            
+
             let edge = Edge {
                 source_id: "complex::module::function".to_string(),
                 target_id: "other::module::Type::method".to_string(),
@@ -538,7 +538,7 @@ mod tests {
         #[test]
         fn test_edge_creation_with_special_characters_in_ids() {
             let reference = make_reference("/src/main.rs", 10);
-            
+
             let edge = Edge {
                 source_id: "file:///path/symbol#123".to_string(),
                 target_id: "file:///other/symbol#456".to_string(),
@@ -596,17 +596,20 @@ mod tests {
             // This test verifies the logic: if from_id != symbol_info.id
             let from_id = "symbol123";
             let to_id = "symbol123";
-            
+
             // This simulates the check in create_reference_edges line 112
             let should_create_edge = from_id != to_id;
-            assert!(!should_create_edge, "Self-references should be filtered out");
+            assert!(
+                !should_create_edge,
+                "Self-references should be filtered out"
+            );
         }
 
         #[test]
         fn test_different_symbols_should_create_edge() {
             let from_id = "symbol_a";
             let to_id = "symbol_b";
-            
+
             let should_create_edge = from_id != to_id;
             assert!(should_create_edge, "Different symbols should create edge");
         }
@@ -616,15 +619,21 @@ mod tests {
             // When find_containing_symbol returns None, no edge is created
             // This is handled by the if let Some(from_id) pattern in line 111
             let containing_symbol: Option<String> = None;
-            
-            assert!(containing_symbol.is_none(), "Reference without containing symbol should be skipped");
+
+            assert!(
+                containing_symbol.is_none(),
+                "Reference without containing symbol should be skipped"
+            );
         }
 
         #[test]
         fn test_reference_with_containing_symbol_processed() {
             let containing_symbol: Option<String> = Some("some_symbol".to_string());
-            
-            assert!(containing_symbol.is_some(), "Reference with containing symbol should be processed");
+
+            assert!(
+                containing_symbol.is_some(),
+                "Reference with containing symbol should be processed"
+            );
         }
 
         #[test]
@@ -634,7 +643,7 @@ mod tests {
             let test_cases = vec![
                 (Some("sym1".to_string()), "sym2"), // Should count: different symbols
                 (Some("sym2".to_string()), "sym2"), // Should not count: self-reference
-                (None, "sym3"),                      // Should not count: no containing symbol
+                (None, "sym3"),                     // Should not count: no containing symbol
                 (Some("sym4".to_string()), "sym5"), // Should count: different symbols
             ];
 
@@ -658,7 +667,7 @@ mod tests {
         #[test]
         fn test_reference_to_edge_mapping_preserves_location() {
             let reference = make_reference("/src/main.rs", 42);
-            
+
             // Verify the reference location is correctly mapped to edge
             assert_eq!(reference.line, 42);
             assert_eq!(reference.start_col, 0);
@@ -707,7 +716,10 @@ mod tests {
             let reference = make_reference("/src/other.rs", 5);
             let containing = find_containing_symbol(&reference, &symbols);
 
-            assert_eq!(containing, None, "Reference in non-existent file should have no containing symbol");
+            assert_eq!(
+                containing, None,
+                "Reference in non-existent file should have no containing symbol"
+            );
         }
 
         #[test]
@@ -715,7 +727,7 @@ mod tests {
             // create_reference_edge always uses EdgeKind::References
             // This is a critical property of the function
             let edge_kind = EdgeKind::References;
-            
+
             assert_eq!(edge_kind, EdgeKind::References);
             assert_ne!(edge_kind, EdgeKind::Calls);
             assert_ne!(edge_kind, EdgeKind::Imports);
