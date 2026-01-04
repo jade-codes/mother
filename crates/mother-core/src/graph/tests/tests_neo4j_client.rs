@@ -34,6 +34,7 @@ async fn cleanup_test_data(client: &Neo4jClient) {
 }
 
 #[tokio::test]
+#[ignore = "requires running Neo4j"]
 #[serial]
 async fn test_connect_success() {
     let config = Neo4jConfig::new("bolt://localhost:7687", "neo4j", "mother_dev_password");
@@ -43,6 +44,7 @@ async fn test_connect_success() {
 }
 
 #[tokio::test]
+#[ignore = "requires running Neo4j"]
 #[serial]
 async fn test_connect_with_database() {
     let config = Neo4jConfig::new("bolt://localhost:7687", "neo4j", "mother_dev_password")
@@ -53,6 +55,7 @@ async fn test_connect_with_database() {
 }
 
 #[tokio::test]
+#[ignore = "requires running Neo4j"]
 #[serial]
 async fn test_connect_invalid_credentials() {
     let config = Neo4jConfig::new("bolt://localhost:7687", "neo4j", "wrong_password");
@@ -62,6 +65,7 @@ async fn test_connect_invalid_credentials() {
 }
 
 #[tokio::test]
+#[ignore = "requires running Neo4j"]
 #[serial]
 async fn test_connect_invalid_uri() {
     let config = Neo4jConfig::new("bolt://invalid-host:7687", "neo4j", "mother_dev_password");
@@ -71,6 +75,7 @@ async fn test_connect_invalid_uri() {
 }
 
 #[tokio::test]
+#[ignore = "requires running Neo4j"]
 #[serial]
 async fn test_graph_accessor() {
     let client = create_test_client().await;
@@ -84,6 +89,7 @@ async fn test_graph_accessor() {
 }
 
 #[tokio::test]
+#[ignore = "requires running Neo4j"]
 #[serial]
 async fn test_ensure_indexes_creates_indexes() {
     let client = create_test_client().await;
@@ -113,6 +119,7 @@ async fn test_ensure_indexes_creates_indexes() {
 }
 
 #[tokio::test]
+#[ignore = "requires running Neo4j"]
 #[serial]
 async fn test_create_scan_run_new_commit() {
     let client = create_test_client().await;
@@ -135,6 +142,7 @@ async fn test_create_scan_run_new_commit() {
 }
 
 #[tokio::test]
+#[ignore = "requires running Neo4j"]
 #[serial]
 async fn test_create_scan_run_existing_commit() {
     let client = create_test_client().await;
@@ -172,6 +180,7 @@ async fn test_create_scan_run_existing_commit() {
 }
 
 #[tokio::test]
+#[ignore = "requires running Neo4j"]
 #[serial]
 async fn test_create_scan_run_empty_commit_sha() {
     let client = create_test_client().await;
@@ -194,6 +203,7 @@ async fn test_create_scan_run_empty_commit_sha() {
 }
 
 #[tokio::test]
+#[ignore = "requires running Neo4j"]
 #[serial]
 async fn test_create_file_if_new() {
     let client = create_test_client().await;
@@ -223,6 +233,7 @@ async fn test_create_file_if_new() {
 }
 
 #[tokio::test]
+#[ignore = "requires running Neo4j"]
 #[serial]
 async fn test_create_file_if_existing() {
     let client = create_test_client().await;
@@ -276,6 +287,7 @@ async fn test_create_file_if_existing() {
 }
 
 #[tokio::test]
+#[ignore = "requires running Neo4j"]
 #[serial]
 async fn test_create_symbol() {
     let client = create_test_client().await;
@@ -323,6 +335,7 @@ async fn test_create_symbol() {
 }
 
 #[tokio::test]
+#[ignore = "requires running Neo4j"]
 #[serial]
 async fn test_create_symbol_minimal() {
     let client = create_test_client().await;
@@ -370,6 +383,7 @@ async fn test_create_symbol_minimal() {
 }
 
 #[tokio::test]
+#[ignore = "requires running Neo4j"]
 #[serial]
 async fn test_create_symbols_batch_empty() {
     let client = create_test_client().await;
@@ -381,6 +395,7 @@ async fn test_create_symbols_batch_empty() {
 }
 
 #[tokio::test]
+#[ignore = "requires running Neo4j"]
 #[serial]
 async fn test_create_symbols_batch_single() {
     let client = create_test_client().await;
@@ -430,6 +445,7 @@ async fn test_create_symbols_batch_single() {
 }
 
 #[tokio::test]
+#[ignore = "requires running Neo4j"]
 #[serial]
 async fn test_create_symbols_batch_multiple() {
     let client = create_test_client().await;
@@ -505,6 +521,7 @@ async fn test_create_symbols_batch_multiple() {
 }
 
 #[tokio::test]
+#[ignore = "requires running Neo4j"]
 #[serial]
 async fn test_create_edge_calls() {
     let client = create_test_client().await;
@@ -574,6 +591,7 @@ async fn test_create_edge_calls() {
 }
 
 #[tokio::test]
+#[ignore = "requires running Neo4j"]
 #[serial]
 async fn test_create_edge_references() {
     let client = create_test_client().await;
@@ -643,6 +661,7 @@ async fn test_create_edge_references() {
 }
 
 #[tokio::test]
+#[ignore = "requires running Neo4j"]
 #[serial]
 async fn test_create_edge_no_location() {
     let client = create_test_client().await;
@@ -712,6 +731,7 @@ async fn test_create_edge_no_location() {
 }
 
 #[tokio::test]
+#[ignore = "requires running Neo4j"]
 #[serial]
 async fn test_create_edge_multiple_kinds() {
     let client = create_test_client().await;
