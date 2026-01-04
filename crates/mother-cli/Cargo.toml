@@ -22,5 +22,37 @@ anyhow.workspace = true
 [dev-dependencies]
 tempfile.workspace = true
 
-[lints]
-workspace = true
+# CLI crate: allow print to stdout/stderr, inherit other workspace lints
+[lints.clippy]
+# Enforce explicit error handling
+unwrap_used = "warn"
+expect_used = "warn"
+panic = "warn"
+todo = "warn"
+unimplemented = "warn"
+
+# Code quality (allow print for CLI output)
+dbg_macro = "warn"
+print_stdout = "allow"
+print_stderr = "allow"
+missing_errors_doc = "warn"
+missing_panics_doc = "warn"
+
+# Performance
+inefficient_to_string = "warn"
+unnecessary_wraps = "warn"
+
+# Style consistency
+enum_glob_use = "warn"
+wildcard_imports = "warn"
+
+# Test quality
+collapsible_if = "warn"
+collapsible_else_if = "warn"
+cognitive_complexity = "deny"
+
+# Deny by category
+correctness = { level = "deny", priority = -1 }
+suspicious = { level = "deny", priority = -1 }
+complexity = { level = "deny", priority = -1 }
+perf = { level = "deny", priority = -1 }

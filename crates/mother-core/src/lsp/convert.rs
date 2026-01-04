@@ -199,6 +199,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::unwrap_used)]
     fn test_convert_symbol_information() {
         #[allow(deprecated)]
         let sym_info = SymbolInformation {

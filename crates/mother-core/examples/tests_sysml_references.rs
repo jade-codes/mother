@@ -1,5 +1,5 @@
 //! Test script to debug SysML LSP references
-//! Run with: cargo run --example debug_sysml_references -p mother-core
+//! Run with: cargo run --example tests_sysml_references -p mother-core
 
 #![allow(clippy::print_stdout)]
 

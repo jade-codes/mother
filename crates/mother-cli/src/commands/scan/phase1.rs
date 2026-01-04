@@ -13,6 +13,7 @@ pub struct Phase1Result {
     pub files_to_process: Vec<FileToProcess>,
     pub new_file_count: usize,
     pub reused_file_count: usize,
+    pub error_count: usize,
 }
 
 /// Run Phase 1: Open files in LSP and create in Neo4j
@@ -24,30 +25,48 @@ pub async fn run(
 ) -> Result<Phase1Result> {
     info!("Phase 1: Opening files in LSP...");
 
-    let mut files_to_process: Vec<FileToProcess> = Vec::new();
-    let mut new_file_count = 0;
-    let mut reused_file_count = 0;
+    let mut result = Phase1Result {
+        files_to_process: Vec::new(),
+        new_file_count: 0,
+        reused_file_count: 0,
+        error_count: 0,
+    };
 
     for file in files {
-        match process_file(file, client, lsp_manager, commit_sha).await {
-            Ok(Some(file_to_process)) => {
-                new_file_count += 1;
-                files_to_process.push(file_to_process);
-            }
-            Ok(None) => {
-                reused_file_count += 1;
-            }
-            Err(e) => {
-                tracing::debug!("Skipping file {}: {}", file.path.display(), e);
-            }
-        }
+        let outcome = process_file(file, client, lsp_manager, commit_sha).await;
+        handle_file_result(outcome, file, &mut result);
     }
 
-    Ok(Phase1Result {
-        files_to_process,
-        new_file_count,
-        reused_file_count,
-    })
+    log_phase1_errors(&result);
+    Ok(result)
+}
+
+/// Handle the result of processing a single file
+fn handle_file_result(
+    outcome: Result<Option<FileToProcess>>,
+    file: &DiscoveredFile,
+    result: &mut Phase1Result,
+) {
+    match outcome {
+        Ok(Some(file_to_process)) => {
+            result.new_file_count += 1;
+            result.files_to_process.push(file_to_process);
+        }
+        Ok(None) => {
+            result.reused_file_count += 1;
+        }
+        Err(e) => {
+            result.error_count += 1;
+            tracing::warn!("Failed to process {}: {}", file.path.display(), e);
+        }
+    }
+}
+
+/// Log error summary for phase 1
+fn log_phase1_errors(result: &Phase1Result) {
+    if result.error_count > 0 {
+        tracing::warn!("Phase 1: {} files failed to process", result.error_count);
+    }
 }
 
 /// Process a single file for phase 1. Returns Ok(Some) for new files, Ok(None) for reused.
