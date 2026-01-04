@@ -3,6 +3,10 @@
 //! These tests require language servers to be installed:
 //! - rust-analyzer (for Rust)
 //! - typescript-language-server (for TypeScript)
+//! - pyright-langserver (for Python)
+//! - gopls (for Go)
+
+#![allow(clippy::print_stderr, clippy::unwrap_used)]
 
 use std::fs;
 use std::path::Path;
@@ -728,7 +732,7 @@ pub fn internal_caller() -> i32 {
 
     // Verify we have references from multiple files
     assert!(
-        files_with_refs.len() >= 1,
+        !files_with_refs.is_empty(),
         "Expected references from multiple files, got files: {:?}",
         files_with_refs
     );

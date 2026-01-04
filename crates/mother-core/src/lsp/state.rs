@@ -41,11 +41,10 @@ impl LanguageClient for ClientState {
             ProgressParamsValue::WorkDone(WorkDoneProgress::End(_))
         );
 
-        if is_indexing_token
-            && is_end_progress
-            && let Some(tx) = self.indexed_tx.take()
-        {
-            let _ = tx.send(());
+        if is_indexing_token && is_end_progress {
+            if let Some(tx) = self.indexed_tx.take() {
+                let _ = tx.send(());
+            }
         }
         ControlFlow::Continue(())
     }

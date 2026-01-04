@@ -108,11 +108,12 @@ async fn create_reference_edges(
     let mut count = 0;
 
     for reference in refs {
-        if let Some(from_id) = find_containing_symbol(reference, symbols_by_file)
-            && from_id != symbol_info.id
-            && create_reference_edge(client, &from_id, &symbol_info.id, reference).await
-        {
-            count += 1;
+        if let Some(from_id) = find_containing_symbol(reference, symbols_by_file) {
+            if from_id != symbol_info.id
+                && create_reference_edge(client, &from_id, &symbol_info.id, reference).await
+            {
+                count += 1;
+            }
         }
     }
 
