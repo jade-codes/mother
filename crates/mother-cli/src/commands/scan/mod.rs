@@ -9,6 +9,9 @@ mod phase1;
 mod phase2;
 mod phase3;
 
+#[cfg(test)]
+mod tests;
+
 use std::path::Path;
 
 use anyhow::Result;
@@ -140,7 +143,7 @@ fn log_scan_run_info(scan_run: &ScanRun, commit_sha: &str) {
     );
 }
 
-async fn connect_neo4j(uri: &str, user: &str, password: &str) -> Result<Neo4jClient> {
+pub(crate) async fn connect_neo4j(uri: &str, user: &str, password: &str) -> Result<Neo4jClient> {
     let config = Neo4jConfig::new(uri, user, password);
     Ok(Neo4jClient::connect(&config).await?)
 }
