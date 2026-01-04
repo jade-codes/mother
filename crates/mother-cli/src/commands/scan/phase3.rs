@@ -170,7 +170,10 @@ mod tests {
     }
 
     /// Helper to create a symbols_by_file map
-    fn make_symbols_map(entries: Vec<(&str, Vec<(&str, u32, u32)>)>) -> HashMap<String, Vec<(String, u32, u32)>> {
+    #[allow(clippy::type_complexity)]
+    fn make_symbols_map(
+        entries: Vec<(&str, Vec<(&str, u32, u32)>)>,
+    ) -> HashMap<String, Vec<(String, u32, u32)>> {
         entries
             .into_iter()
             .map(|(file, symbols)| {
@@ -188,9 +191,7 @@ mod tests {
     #[test]
     fn test_find_containing_symbol_exact_match() {
         let reference = make_reference("/src/main.rs", 10);
-        let symbols = make_symbols_map(vec![
-            ("/src/main.rs", vec![("symbol1", 5, 15)]),
-        ]);
+        let symbols = make_symbols_map(vec![("/src/main.rs", vec![("symbol1", 5, 15)])]);
 
         let result = find_containing_symbol(&reference, &symbols);
         assert_eq!(result, Some("symbol1".to_string()));
@@ -201,12 +202,10 @@ mod tests {
         // Reference at line 10 could be in both outer (1-20) and inner (8-12)
         // Should select the inner one (smallest span)
         let reference = make_reference("/src/main.rs", 10);
-        let symbols = make_symbols_map(vec![
-            ("/src/main.rs", vec![
-                ("outer_function", 1, 20),
-                ("inner_block", 8, 12),
-            ]),
-        ]);
+        let symbols = make_symbols_map(vec![(
+            "/src/main.rs",
+            vec![("outer_function", 1, 20), ("inner_block", 8, 12)],
+        )]);
 
         let result = find_containing_symbol(&reference, &symbols);
         assert_eq!(result, Some("inner_block".to_string()));
@@ -217,13 +216,14 @@ mod tests {
         // Reference at line 10 matches three symbols
         // Should select the one with smallest range
         let reference = make_reference("/src/main.rs", 10);
-        let symbols = make_symbols_map(vec![
-            ("/src/main.rs", vec![
+        let symbols = make_symbols_map(vec![(
+            "/src/main.rs",
+            vec![
                 ("class", 1, 50),       // range: 49
                 ("method", 5, 20),      // range: 15
                 ("inner_block", 9, 11), // range: 2 (smallest)
-            ]),
-        ]);
+            ],
+        )]);
 
         let result = find_containing_symbol(&reference, &symbols);
         assert_eq!(result, Some("inner_block".to_string()));
@@ -232,12 +232,10 @@ mod tests {
     #[test]
     fn test_find_containing_symbol_outside_all_symbols() {
         let reference = make_reference("/src/main.rs", 100);
-        let symbols = make_symbols_map(vec![
-            ("/src/main.rs", vec![
-                ("symbol1", 1, 10),
-                ("symbol2", 20, 30),
-            ]),
-        ]);
+        let symbols = make_symbols_map(vec![(
+            "/src/main.rs",
+            vec![("symbol1", 1, 10), ("symbol2", 20, 30)],
+        )]);
 
         let result = find_containing_symbol(&reference, &symbols);
         assert_eq!(result, None);
@@ -246,9 +244,7 @@ mod tests {
     #[test]
     fn test_find_containing_symbol_file_not_in_map() {
         let reference = make_reference("/src/other.rs", 10);
-        let symbols = make_symbols_map(vec![
-            ("/src/main.rs", vec![("symbol1", 1, 20)]),
-        ]);
+        let symbols = make_symbols_map(vec![("/src/main.rs", vec![("symbol1", 1, 20)])]);
 
         let result = find_containing_symbol(&reference, &symbols);
         assert_eq!(result, None);
@@ -267,9 +263,7 @@ mod tests {
     fn test_find_containing_symbol_at_start_boundary() {
         // Reference exactly at start line of symbol
         let reference = make_reference("/src/main.rs", 5);
-        let symbols = make_symbols_map(vec![
-            ("/src/main.rs", vec![("symbol1", 5, 15)]),
-        ]);
+        let symbols = make_symbols_map(vec![("/src/main.rs", vec![("symbol1", 5, 15)])]);
 
         let result = find_containing_symbol(&reference, &symbols);
         assert_eq!(result, Some("symbol1".to_string()));
@@ -279,9 +273,7 @@ mod tests {
     fn test_find_containing_symbol_at_end_boundary() {
         // Reference exactly at end line of symbol
         let reference = make_reference("/src/main.rs", 15);
-        let symbols = make_symbols_map(vec![
-            ("/src/main.rs", vec![("symbol1", 5, 15)]),
-        ]);
+        let symbols = make_symbols_map(vec![("/src/main.rs", vec![("symbol1", 5, 15)])]);
 
         let result = find_containing_symbol(&reference, &symbols);
         assert_eq!(result, Some("symbol1".to_string()));
@@ -291,9 +283,7 @@ mod tests {
     fn test_find_containing_symbol_just_before_start() {
         // Reference just before symbol start (line 4, symbol starts at 5)
         let reference = make_reference("/src/main.rs", 4);
-        let symbols = make_symbols_map(vec![
-            ("/src/main.rs", vec![("symbol1", 5, 15)]),
-        ]);
+        let symbols = make_symbols_map(vec![("/src/main.rs", vec![("symbol1", 5, 15)])]);
 
         let result = find_containing_symbol(&reference, &symbols);
         assert_eq!(result, None);
@@ -303,9 +293,7 @@ mod tests {
     fn test_find_containing_symbol_just_after_end() {
         // Reference just after symbol end (line 16, symbol ends at 15)
         let reference = make_reference("/src/main.rs", 16);
-        let symbols = make_symbols_map(vec![
-            ("/src/main.rs", vec![("symbol1", 5, 15)]),
-        ]);
+        let symbols = make_symbols_map(vec![("/src/main.rs", vec![("symbol1", 5, 15)])]);
 
         let result = find_containing_symbol(&reference, &symbols);
         assert_eq!(result, None);
@@ -327,12 +315,10 @@ mod tests {
     fn test_find_containing_symbol_same_range_picks_first() {
         // Two symbols with identical ranges - should pick the first one found
         let reference = make_reference("/src/main.rs", 10);
-        let symbols = make_symbols_map(vec![
-            ("/src/main.rs", vec![
-                ("symbol1", 5, 15),
-                ("symbol2", 5, 15),
-            ]),
-        ]);
+        let symbols = make_symbols_map(vec![(
+            "/src/main.rs",
+            vec![("symbol1", 5, 15), ("symbol2", 5, 15)],
+        )]);
 
         let result = find_containing_symbol(&reference, &symbols);
         // With min_by_key, when ranges are equal, it returns the first one
@@ -344,9 +330,7 @@ mod tests {
     fn test_find_containing_symbol_single_line_symbol() {
         // Symbol that starts and ends on the same line
         let reference = make_reference("/src/main.rs", 10);
-        let symbols = make_symbols_map(vec![
-            ("/src/main.rs", vec![("single_line", 10, 10)]),
-        ]);
+        let symbols = make_symbols_map(vec![("/src/main.rs", vec![("single_line", 10, 10)])]);
 
         let result = find_containing_symbol(&reference, &symbols);
         assert_eq!(result, Some("single_line".to_string()));
@@ -355,9 +339,7 @@ mod tests {
     #[test]
     fn test_find_containing_symbol_no_symbols_in_file() {
         let reference = make_reference("/src/main.rs", 10);
-        let symbols = make_symbols_map(vec![
-            ("/src/main.rs", vec![]),
-        ]);
+        let symbols = make_symbols_map(vec![("/src/main.rs", vec![])]);
 
         let result = find_containing_symbol(&reference, &symbols);
         assert_eq!(result, None);
@@ -373,22 +355,20 @@ mod tests {
     #[test]
     fn test_build_symbol_lookup_table_strips_file_prefix() {
         use mother_core::scanner::Language;
-        
-        let symbols = vec![
-            SymbolInfo {
-                id: "sym1".to_string(),
-                file_uri: "file:///home/project/src/main.rs".to_string(),
-                start_line: 1,
-                end_line: 10,
-                start_col: 0,
-                language: Language::Rust,
-            },
-        ];
+
+        let symbols = vec![SymbolInfo {
+            id: "sym1".to_string(),
+            file_uri: "file:///home/project/src/main.rs".to_string(),
+            start_line: 1,
+            end_line: 10,
+            start_col: 0,
+            language: Language::Rust,
+        }];
 
         let result = build_symbol_lookup_table(&symbols);
         assert_eq!(result.len(), 1);
         assert!(result.contains_key("/home/project/src/main.rs"));
-        
+
         let file_symbols = &result["/home/project/src/main.rs"];
         assert_eq!(file_symbols.len(), 1);
         assert_eq!(file_symbols[0].0, "sym1");
@@ -399,7 +379,7 @@ mod tests {
     #[test]
     fn test_build_symbol_lookup_table_groups_by_file() {
         use mother_core::scanner::Language;
-        
+
         let symbols = vec![
             SymbolInfo {
                 id: "sym1".to_string(),
@@ -429,12 +409,12 @@ mod tests {
 
         let result = build_symbol_lookup_table(&symbols);
         assert_eq!(result.len(), 2);
-        
+
         let main_symbols = &result["/src/main.rs"];
         assert_eq!(main_symbols.len(), 2);
         assert_eq!(main_symbols[0].0, "sym1");
         assert_eq!(main_symbols[1].0, "sym2");
-        
+
         let utils_symbols = &result["/src/utils.rs"];
         assert_eq!(utils_symbols.len(), 1);
         assert_eq!(utils_symbols[0].0, "sym3");
@@ -443,17 +423,15 @@ mod tests {
     #[test]
     fn test_build_symbol_lookup_table_no_file_prefix() {
         use mother_core::scanner::Language;
-        
-        let symbols = vec![
-            SymbolInfo {
-                id: "sym1".to_string(),
-                file_uri: "/absolute/path/main.rs".to_string(),
-                start_line: 1,
-                end_line: 10,
-                start_col: 0,
-                language: Language::Rust,
-            },
-        ];
+
+        let symbols = vec![SymbolInfo {
+            id: "sym1".to_string(),
+            file_uri: "/absolute/path/main.rs".to_string(),
+            start_line: 1,
+            end_line: 10,
+            start_col: 0,
+            language: Language::Rust,
+        }];
 
         let result = build_symbol_lookup_table(&symbols);
         assert_eq!(result.len(), 1);
