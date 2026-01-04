@@ -15,7 +15,7 @@ pub use convert::{
     convert_document_symbol, convert_symbol_information, convert_symbol_kind,
     convert_symbol_response, marked_string_to_string,
 };
-pub use manager::LspServerManager;
+pub use manager::{LspServerDefaults, LspServerManager};
 pub use types::{
     LspReference, LspServerConfig, LspSymbol, LspSymbolKind, collect_symbol_positions,
     flatten_symbols,
