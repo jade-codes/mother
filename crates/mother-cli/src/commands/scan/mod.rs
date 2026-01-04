@@ -96,13 +96,26 @@ async fn execute_scan(abs_path: &Path, client: &Neo4jClient, commit_sha: &str) -
 }
 
 fn log_scan_summary(phase1: &Phase1Result, phase2: &Phase2Result, phase3: &Phase3Result) {
-    info!(
-        "✓ Scan completed: {} new files, {} reused, {} symbols, {} references",
-        phase1.new_file_count,
-        phase1.reused_file_count,
-        phase2.symbol_count,
-        phase3.reference_count
-    );
+    let total_errors = phase1.error_count + phase2.error_count + phase3.error_count;
+
+    if total_errors > 0 {
+        info!(
+            "✓ Scan completed: {} new files, {} reused, {} symbols, {} references ({} errors)",
+            phase1.new_file_count,
+            phase1.reused_file_count,
+            phase2.symbol_count,
+            phase3.reference_count,
+            total_errors
+        );
+    } else {
+        info!(
+            "✓ Scan completed: {} new files, {} reused, {} symbols, {} references",
+            phase1.new_file_count,
+            phase1.reused_file_count,
+            phase2.symbol_count,
+            phase3.reference_count
+        );
+    }
 }
 
 fn create_scan_run(abs_path: &Path, version: Option<&str>) -> (ScanRun, String) {

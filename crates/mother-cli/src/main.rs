@@ -18,6 +18,42 @@ struct Cli {
 }
 
 #[derive(Subcommand)]
+enum QueryCommands {
+    /// Find symbols by name pattern
+    Symbols {
+        /// Pattern to search for (case-insensitive)
+        pattern: String,
+    },
+    /// List symbols in a file
+    File {
+        /// File path (or partial path)
+        path: String,
+    },
+    /// Find references to a symbol
+    RefsTo {
+        /// Symbol name to find references to
+        symbol: String,
+    },
+    /// Find what a symbol references
+    RefsFrom {
+        /// Symbol name to find outgoing references from
+        symbol: String,
+    },
+    /// List files in the graph
+    Files {
+        /// Optional pattern to filter files
+        pattern: Option<String>,
+    },
+    /// Show graph statistics
+    Stats,
+    /// Execute raw Cypher query
+    Raw {
+        /// Cypher query to execute
+        query: String,
+    },
+}
+
+#[derive(Subcommand)]
 enum Commands {
     /// Scan a repository and store AST in Neo4j
     Scan {
@@ -43,8 +79,8 @@ enum Commands {
 
     /// Query the Neo4j graph
     Query {
-        /// Cypher query to execute
-        query: String,
+        #[command(subcommand)]
+        query_cmd: QueryCommands,
 
         /// Neo4j connection URI
         #[arg(long, default_value = "bolt://localhost:7687")]
@@ -119,12 +155,12 @@ async fn main() -> anyhow::Result<()> {
             .await?;
         }
         Commands::Query {
-            query,
+            query_cmd,
             neo4j_uri,
             neo4j_user,
             neo4j_password,
         } => {
-            commands::query::run(&query, &neo4j_uri, &neo4j_user, &neo4j_password).await?;
+            commands::query::run(query_cmd, &neo4j_uri, &neo4j_user, &neo4j_password).await?;
         }
         Commands::Diff {
             from,

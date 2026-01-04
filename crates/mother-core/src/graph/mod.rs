@@ -8,5 +8,8 @@ pub mod model;
 pub mod neo4j;
 pub mod queries;
 
+// Re-export query result types
+pub use queries::{FileResult, GraphStats, ReferenceResult, SymbolResult};
+
 #[cfg(test)]
 mod tests;
