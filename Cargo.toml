@@ -55,6 +55,7 @@ chrono = { version = "0.4", features = ["serde"] }
 # Testing utilities
 tempfile = "3"
 rstest = "0.23"
+serial_test = "3"
 
 [workspace.lints.clippy]
 # Enforce explicit error handling

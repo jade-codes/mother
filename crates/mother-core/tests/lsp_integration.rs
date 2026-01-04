@@ -7,13 +7,6 @@
 //! - gopls (for Go)
 
 #![allow(clippy::print_stderr, clippy::unwrap_used)]
-
-#![allow(clippy::print_stderr)]
-#![allow(clippy::unwrap_used)]
-
-#![allow(clippy::print_stderr)]
-#![allow(clippy::unwrap_used)]
-
 use std::fs;
 use std::path::Path;
 use std::time::Duration;
@@ -446,12 +439,8 @@ class User:
 
     def greet(self) -> str:
         return f"Hello, {self.name}!"
-
-
 def create_user(name: str, age: int = 0) -> User:
     return User(name, age)
-
-
 PI = 3.14159
 "#;
     let file_path = temp.path().join("user.py");
@@ -500,12 +489,8 @@ async fn test_python_references() -> anyhow::Result<()> {
     let python_code = r#"
 def helper() -> int:
     return 42
-
-
 def caller1() -> int:
     return helper()
-
-
 def caller2() -> int:
     return helper() + helper()
 "#;
@@ -854,8 +839,6 @@ async fn test_python_cross_file_references() -> anyhow::Result<()> {
     let utils_code = r#"
 def helper() -> int:
     return 42
-
-
 def internal_caller() -> int:
     return helper() + helper()
 "#;
@@ -865,12 +848,8 @@ def internal_caller() -> int:
     // Create main.py that imports and uses helper
     let main_code = r#"
 from utils import helper
-
-
 def main_caller() -> int:
     return helper()
-
-
 def another_caller() -> int:
     return helper() * 2
 "#;
