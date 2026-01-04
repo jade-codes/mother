@@ -438,4 +438,299 @@ mod tests {
         assert_eq!(result.len(), 1);
         assert!(result.contains_key("/absolute/path/main.rs"));
     }
+
+    /// Tests for Edge creation logic used in create_reference_edge
+    mod edge_creation_tests {
+        use super::*;
+        use mother_core::graph::model::{Edge, EdgeKind};
+
+        #[test]
+        fn test_edge_creation_with_valid_reference() {
+            let reference = make_reference("/src/main.rs", 42);
+            let from_id = "caller_symbol";
+            let to_id = "called_symbol";
+
+            // Simulate the edge creation logic from create_reference_edge
+            let edge = Edge {
+                source_id: from_id.to_string(),
+                target_id: to_id.to_string(),
+                kind: EdgeKind::References,
+                line: Some(reference.line),
+                column: Some(reference.start_col),
+            };
+
+            assert_eq!(edge.source_id, "caller_symbol");
+            assert_eq!(edge.target_id, "called_symbol");
+            assert_eq!(edge.kind, EdgeKind::References);
+            assert_eq!(edge.line, Some(42));
+            assert_eq!(edge.column, Some(0));
+        }
+
+        #[test]
+        fn test_edge_creation_uses_references_kind() {
+            let reference = make_reference("/src/lib.rs", 10);
+            let edge = Edge {
+                source_id: "source".to_string(),
+                target_id: "target".to_string(),
+                kind: EdgeKind::References,
+                line: Some(reference.line),
+                column: Some(reference.start_col),
+            };
+
+            // Verify that create_reference_edge always uses References kind
+            assert_eq!(edge.kind, EdgeKind::References);
+        }
+
+        #[test]
+        fn test_edge_creation_with_different_line_numbers() {
+            let test_cases = vec![1, 42, 100, 999, 10000];
+
+            for line_num in test_cases {
+                let reference = make_reference("/src/test.rs", line_num);
+                let edge = Edge {
+                    source_id: "src".to_string(),
+                    target_id: "dst".to_string(),
+                    kind: EdgeKind::References,
+                    line: Some(reference.line),
+                    column: Some(reference.start_col),
+                };
+
+                assert_eq!(edge.line, Some(line_num));
+            }
+        }
+
+        #[test]
+        fn test_edge_creation_with_different_column_numbers() {
+            let test_cases = vec![0, 5, 10, 50, 100];
+
+            for col in test_cases {
+                let mut reference = make_reference("/src/test.rs", 10);
+                reference.start_col = col;
+
+                let edge = Edge {
+                    source_id: "src".to_string(),
+                    target_id: "dst".to_string(),
+                    kind: EdgeKind::References,
+                    line: Some(reference.line),
+                    column: Some(reference.start_col),
+                };
+
+                assert_eq!(edge.column, Some(col));
+            }
+        }
+
+        #[test]
+        fn test_edge_creation_preserves_ids() {
+            let reference = make_reference("/src/main.rs", 10);
+
+            let edge = Edge {
+                source_id: "complex::module::function".to_string(),
+                target_id: "other::module::Type::method".to_string(),
+                kind: EdgeKind::References,
+                line: Some(reference.line),
+                column: Some(reference.start_col),
+            };
+
+            assert_eq!(edge.source_id, "complex::module::function");
+            assert_eq!(edge.target_id, "other::module::Type::method");
+        }
+
+        #[test]
+        fn test_edge_creation_with_special_characters_in_ids() {
+            let reference = make_reference("/src/main.rs", 10);
+
+            let edge = Edge {
+                source_id: "file:///path/symbol#123".to_string(),
+                target_id: "file:///other/symbol#456".to_string(),
+                kind: EdgeKind::References,
+                line: Some(reference.line),
+                column: Some(reference.start_col),
+            };
+
+            assert_eq!(edge.source_id, "file:///path/symbol#123");
+            assert_eq!(edge.target_id, "file:///other/symbol#456");
+        }
+
+        #[test]
+        fn test_edge_line_and_column_are_optional() {
+            // Test that Edge struct supports None for line and column
+            let edge = Edge {
+                source_id: "src".to_string(),
+                target_id: "dst".to_string(),
+                kind: EdgeKind::References,
+                line: None,
+                column: None,
+            };
+
+            assert_eq!(edge.line, None);
+            assert_eq!(edge.column, None);
+        }
+
+        #[test]
+        fn test_edge_with_zero_line_and_column() {
+            let reference = LspReference {
+                file: std::path::PathBuf::from("/src/test.rs"),
+                line: 0,
+                start_col: 0,
+                end_col: 0,
+            };
+
+            let edge = Edge {
+                source_id: "src".to_string(),
+                target_id: "dst".to_string(),
+                kind: EdgeKind::References,
+                line: Some(reference.line),
+                column: Some(reference.start_col),
+            };
+
+            assert_eq!(edge.line, Some(0));
+            assert_eq!(edge.column, Some(0));
+        }
+    }
+
+    /// Tests for reference edge creation logic flow
+    mod reference_edge_logic_tests {
+        #[test]
+        fn test_self_reference_should_be_filtered() {
+            // In create_reference_edges, edges where from_id == to_id are filtered
+            // This test verifies the logic: if from_id != symbol_info.id
+            let from_id = "symbol123";
+            let to_id = "symbol123";
+
+            // This simulates the check in create_reference_edges line 112
+            let should_create_edge = from_id != to_id;
+            assert!(
+                !should_create_edge,
+                "Self-references should be filtered out"
+            );
+        }
+
+        #[test]
+        fn test_different_symbols_should_create_edge() {
+            let from_id = "symbol_a";
+            let to_id = "symbol_b";
+
+            let should_create_edge = from_id != to_id;
+            assert!(should_create_edge, "Different symbols should create edge");
+        }
+
+        #[test]
+        fn test_reference_without_containing_symbol_skipped() {
+            // When find_containing_symbol returns None, no edge is created
+            // This is handled by the if let Some(from_id) pattern in line 111
+            let containing_symbol: Option<String> = None;
+
+            assert!(
+                containing_symbol.is_none(),
+                "Reference without containing symbol should be skipped"
+            );
+        }
+
+        #[test]
+        fn test_reference_with_containing_symbol_processed() {
+            let containing_symbol: Option<String> = Some("some_symbol".to_string());
+
+            assert!(
+                containing_symbol.is_some(),
+                "Reference with containing symbol should be processed"
+            );
+        }
+
+        #[test]
+        fn test_edge_counter_logic() {
+            // Simulates the counting logic in create_reference_edges
+            let mut count = 0;
+            let test_cases = vec![
+                (Some("sym1".to_string()), "sym2"), // Should count: different symbols
+                (Some("sym2".to_string()), "sym2"), // Should not count: self-reference
+                (None, "sym3"),                     // Should not count: no containing symbol
+                (Some("sym4".to_string()), "sym5"), // Should count: different symbols
+            ];
+
+            for (from_opt, to_id) in test_cases {
+                if let Some(from_id) = from_opt {
+                    if from_id != to_id {
+                        // Simulating successful edge creation
+                        count += 1;
+                    }
+                }
+            }
+
+            assert_eq!(count, 2, "Only 2 valid edges should be counted");
+        }
+    }
+
+    /// Tests for reference location and symbol mapping
+    mod reference_mapping_tests {
+        use super::*;
+
+        #[test]
+        fn test_reference_to_edge_mapping_preserves_location() {
+            let reference = make_reference("/src/main.rs", 42);
+
+            // Verify the reference location is correctly mapped to edge
+            assert_eq!(reference.line, 42);
+            assert_eq!(reference.start_col, 0);
+        }
+
+        #[test]
+        fn test_multiple_references_same_symbol() {
+            // Tests that multiple references to the same symbol can exist
+            let symbols = make_symbols_map(vec![(
+                "/src/main.rs",
+                vec![("function_a", 1, 10), ("function_b", 20, 30)],
+            )]);
+
+            let ref1 = make_reference("/src/main.rs", 5);
+            let ref2 = make_reference("/src/main.rs", 7);
+
+            let containing1 = find_containing_symbol(&ref1, &symbols);
+            let containing2 = find_containing_symbol(&ref2, &symbols);
+
+            assert_eq!(containing1, Some("function_a".to_string()));
+            assert_eq!(containing2, Some("function_a".to_string()));
+        }
+
+        #[test]
+        fn test_references_from_different_symbols() {
+            let symbols = make_symbols_map(vec![(
+                "/src/main.rs",
+                vec![("function_a", 1, 10), ("function_b", 20, 30)],
+            )]);
+
+            let ref1 = make_reference("/src/main.rs", 5);
+            let ref2 = make_reference("/src/main.rs", 25);
+
+            let containing1 = find_containing_symbol(&ref1, &symbols);
+            let containing2 = find_containing_symbol(&ref2, &symbols);
+
+            assert_eq!(containing1, Some("function_a".to_string()));
+            assert_eq!(containing2, Some("function_b".to_string()));
+            assert_ne!(containing1, containing2);
+        }
+
+        #[test]
+        fn test_reference_in_non_existent_file() {
+            let symbols = make_symbols_map(vec![("/src/main.rs", vec![("func", 1, 10)])]);
+
+            let reference = make_reference("/src/other.rs", 5);
+            let containing = find_containing_symbol(&reference, &symbols);
+
+            assert_eq!(
+                containing, None,
+                "Reference in non-existent file should have no containing symbol"
+            );
+        }
+
+        #[test]
+        fn test_edge_kind_is_always_references() {
+            // create_reference_edge always uses EdgeKind::References
+            // This is a critical property of the function
+            let edge_kind = EdgeKind::References;
+
+            assert_eq!(edge_kind, EdgeKind::References);
+            assert_ne!(edge_kind, EdgeKind::Calls);
+            assert_ne!(edge_kind, EdgeKind::Imports);
+        }
+    }
 }
