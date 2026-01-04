@@ -7,13 +7,6 @@
 //! - gopls (for Go)
 
 #![allow(clippy::print_stderr, clippy::unwrap_used)]
-
-#![allow(clippy::print_stderr)]
-#![allow(clippy::unwrap_used)]
-
-#![allow(clippy::print_stderr)]
-#![allow(clippy::unwrap_used)]
-
 use std::fs;
 use std::path::Path;
 use std::time::Duration;
@@ -44,7 +37,7 @@ fn command_exists(cmd: &str) -> bool {
 }
 
 /// Create a minimal Cargo.toml for Rust projects
-fn create_cargo_toml(dir: &Path, name: &str) {
+fn create_cargo_toml(dir: &Path, name: &str) -> anyhow::Result<()> {
     let content = format!(
         r#"[package]
 name = "{name}"
@@ -52,7 +45,8 @@ version = "0.1.0"
 edition = "2021"
 "#
     );
-    fs::write(dir.join("Cargo.toml"), content).unwrap();
+    fs::write(dir.join("Cargo.toml"), content)?;
+    Ok(())
 }
 
 // ============================================================================
@@ -62,7 +56,6 @@ edition = "2021"
 #[tokio::test]
 async fn test_rust_document_symbols() -> anyhow::Result<()> {
     if !command_exists("rust-analyzer") {
-        eprintln!("Skipping test: rust-analyzer not found");
         return Ok(());
     }
 
@@ -71,7 +64,7 @@ async fn test_rust_document_symbols() -> anyhow::Result<()> {
     fs::create_dir_all(&src_dir)?;
 
     // Create minimal Cargo.toml
-    create_cargo_toml(temp.path(), "test_project");
+    create_cargo_toml(temp.path(), "test_project")?;
 
     // Create a Rust file with known symbols
     let rust_code = r#"
@@ -122,7 +115,7 @@ pub fn create_user(name: &str) -> User {
                 break;
             }
             Err(e) if attempt < 2 => {
-                eprintln!("Retry {}: {}", attempt + 1, e);
+                // Retry on failure
                 continue;
             }
             Err(e) => return Err(e),
@@ -153,7 +146,6 @@ pub fn create_user(name: &str) -> User {
 #[tokio::test]
 async fn test_rust_references() -> anyhow::Result<()> {
     if !command_exists("rust-analyzer") {
-        eprintln!("Skipping test: rust-analyzer not found");
         return Ok(());
     }
 
@@ -161,7 +153,7 @@ async fn test_rust_references() -> anyhow::Result<()> {
     let src_dir = temp.path().join("src");
     fs::create_dir_all(&src_dir)?;
 
-    create_cargo_toml(temp.path(), "test_refs");
+    create_cargo_toml(temp.path(), "test_refs")?;
 
     // Create code with references we can find
     let rust_code = r#"
@@ -205,7 +197,7 @@ pub fn caller_two() -> i32 {
                 break;
             }
             Err(e) if attempt < 4 && e.to_string().contains("content modified") => {
-                eprintln!("Retry {}: {}", attempt + 1, e);
+                // Retry on content modified error
                 continue;
             }
             Err(e) => return Err(e),
@@ -226,7 +218,6 @@ pub fn caller_two() -> i32 {
 #[tokio::test]
 async fn test_rust_definition() -> anyhow::Result<()> {
     if !command_exists("rust-analyzer") {
-        eprintln!("Skipping test: rust-analyzer not found");
         return Ok(());
     }
 
@@ -234,7 +225,7 @@ async fn test_rust_definition() -> anyhow::Result<()> {
     let src_dir = temp.path().join("src");
     fs::create_dir_all(&src_dir)?;
 
-    create_cargo_toml(temp.path(), "test_def");
+    create_cargo_toml(temp.path(), "test_def")?;
 
     let rust_code = r#"
 pub struct Point {
@@ -274,7 +265,7 @@ pub fn use_point() {
                 break;
             }
             Err(e) if attempt < 4 && e.to_string().contains("content modified") => {
-                eprintln!("Retry {}: {}", attempt + 1, e);
+                // Retry on content modified error
                 continue;
             }
             Err(e) => return Err(e),
@@ -298,7 +289,6 @@ pub fn use_point() {
 #[tokio::test]
 async fn test_typescript_document_symbols() -> anyhow::Result<()> {
     if !command_exists("typescript-language-server") {
-        eprintln!("Skipping test: typescript-language-server not found");
         return Ok(());
     }
 
@@ -374,7 +364,6 @@ export function createUser(name: string, age: number): User {
 #[tokio::test]
 async fn test_typescript_references() -> anyhow::Result<()> {
     if !command_exists("typescript-language-server") {
-        eprintln!("Skipping test: typescript-language-server not found");
         return Ok(());
     }
 
@@ -432,7 +421,6 @@ function caller2(): number {
 #[tokio::test]
 async fn test_python_document_symbols() -> anyhow::Result<()> {
     if !command_exists("pyright-langserver") {
-        eprintln!("Skipping test: pyright-langserver not found");
         return Ok(());
     }
 
@@ -491,7 +479,6 @@ PI = 3.14159
 #[tokio::test]
 async fn test_python_references() -> anyhow::Result<()> {
     if !command_exists("pyright-langserver") {
-        eprintln!("Skipping test: pyright-langserver not found");
         return Ok(());
     }
 
@@ -545,7 +532,6 @@ def caller2() -> int:
 #[tokio::test]
 async fn test_go_document_symbols() -> anyhow::Result<()> {
     if !command_exists("gopls") {
-        eprintln!("Skipping test: gopls not found");
         return Ok(());
     }
 
@@ -611,7 +597,6 @@ func createUser(name string) *User {
 #[tokio::test]
 async fn test_go_references() -> anyhow::Result<()> {
     if !command_exists("gopls") {
-        eprintln!("Skipping test: gopls not found");
         return Ok(());
     }
 
@@ -670,7 +655,6 @@ func caller2() int {
 #[tokio::test]
 async fn test_rust_cross_file_references() -> anyhow::Result<()> {
     if !command_exists("rust-analyzer") {
-        eprintln!("Skipping test: rust-analyzer not found");
         return Ok(());
     }
 
@@ -678,7 +662,7 @@ async fn test_rust_cross_file_references() -> anyhow::Result<()> {
     let src_dir = temp.path().join("src");
     fs::create_dir_all(&src_dir)?;
 
-    create_cargo_toml(temp.path(), "cross_ref_test");
+    create_cargo_toml(temp.path(), "cross_ref_test")?;
 
     // Create lib.rs that exports a module
     let lib_code = r#"
@@ -762,7 +746,6 @@ pub fn internal_caller() -> i32 {
 #[tokio::test]
 async fn test_typescript_cross_file_references() -> anyhow::Result<()> {
     if !command_exists("typescript-language-server") {
-        eprintln!("Skipping test: typescript-language-server not found");
         return Ok(());
     }
 
@@ -844,7 +827,6 @@ export function anotherCaller(): number {
 #[tokio::test]
 async fn test_python_cross_file_references() -> anyhow::Result<()> {
     if !command_exists("pyright-langserver") {
-        eprintln!("Skipping test: pyright-langserver not found");
         return Ok(());
     }
 
@@ -919,7 +901,6 @@ def another_caller() -> int:
 #[tokio::test]
 async fn test_go_cross_file_references() -> anyhow::Result<()> {
     if !command_exists("gopls") {
-        eprintln!("Skipping test: gopls not found");
         return Ok(());
     }
 
