@@ -21,6 +21,7 @@ anyhow.workspace = true
 
 [dev-dependencies]
 tempfile.workspace = true
+chrono.workspace = true
 
 # CLI crate: allow print to stdout/stderr, inherit other workspace lints
 [lints.clippy]

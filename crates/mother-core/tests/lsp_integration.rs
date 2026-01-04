@@ -7,13 +7,6 @@
 //! - gopls (for Go)
 
 #![allow(clippy::print_stderr, clippy::unwrap_used)]
-
-#![allow(clippy::print_stderr)]
-#![allow(clippy::unwrap_used)]
-
-#![allow(clippy::print_stderr)]
-#![allow(clippy::unwrap_used)]
-
 use std::fs;
 use std::path::Path;
 use std::time::Duration;
