@@ -34,6 +34,7 @@ chrono.workspace = true
 [dev-dependencies]
 tempfile.workspace = true
 rstest.workspace = true
+serial_test.workspace = true
 tokio = { workspace = true, features = ["test-util"] }
 
 [lints]
