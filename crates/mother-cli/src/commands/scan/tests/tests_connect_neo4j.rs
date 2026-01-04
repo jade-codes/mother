@@ -16,13 +16,13 @@ async fn test_connect_neo4j_creates_valid_config() {
     // with the provided parameters. Since Neo4jClient::connect requires an
     // actual Neo4j instance, we expect this test to fail with a connection
     // error, which confirms the config was created and connection was attempted.
-    
+
     let uri = "bolt://localhost:7687";
     let user = "neo4j";
     let password = "testpassword";
-    
+
     let result = connect_neo4j(uri, user, password).await;
-    
+
     // We expect an error since there's no Neo4j instance running
     // The important part is that the function accepts valid parameters
     // and attempts to connect (proving config was created correctly)
@@ -41,7 +41,7 @@ async fn test_connect_neo4j_with_empty_uri() {
     let uri = "";
     let user = "neo4j";
     let password = "password";
-    
+
     let _result = connect_neo4j(uri, user, password).await;
 }
 
@@ -51,14 +51,11 @@ async fn test_connect_neo4j_with_empty_user() {
     let uri = "bolt://localhost:7687";
     let user = "";
     let password = "password";
-    
+
     let result = connect_neo4j(uri, user, password).await;
-    
+
     // Should fail - connection should require valid credentials
-    assert!(
-        result.is_err(),
-        "Expected error with empty username"
-    );
+    assert!(result.is_err(), "Expected error with empty username");
 }
 
 #[tokio::test]
@@ -67,14 +64,11 @@ async fn test_connect_neo4j_with_empty_password() {
     let uri = "bolt://localhost:7687";
     let user = "neo4j";
     let password = "";
-    
+
     let result = connect_neo4j(uri, user, password).await;
-    
+
     // Should fail - empty password is typically invalid
-    assert!(
-        result.is_err(),
-        "Expected error with empty password"
-    );
+    assert!(result.is_err(), "Expected error with empty password");
 }
 
 #[tokio::test]
@@ -86,7 +80,7 @@ async fn test_connect_neo4j_with_all_empty_params() {
     let uri = "";
     let user = "";
     let password = "";
-    
+
     let _result = connect_neo4j(uri, user, password).await;
 }
 
@@ -100,9 +94,9 @@ async fn test_connect_neo4j_with_bolt_uri() {
     let uri = "bolt://neo4j.example.com:7687";
     let user = "testuser";
     let password = "testpass";
-    
+
     let result = connect_neo4j(uri, user, password).await;
-    
+
     // Should attempt connection (and fail without server)
     assert!(result.is_err(), "Expected connection error without server");
 }
@@ -113,9 +107,9 @@ async fn test_connect_neo4j_with_neo4j_uri() {
     let uri = "neo4j://localhost:7687";
     let user = "testuser";
     let password = "testpass";
-    
+
     let result = connect_neo4j(uri, user, password).await;
-    
+
     // Should attempt connection (and fail without server)
     assert!(result.is_err(), "Expected connection error without server");
 }
@@ -126,14 +120,11 @@ async fn test_connect_neo4j_with_invalid_uri_format() {
     let uri = "not-a-valid-uri";
     let user = "neo4j";
     let password = "password";
-    
+
     let result = connect_neo4j(uri, user, password).await;
-    
+
     // Should fail with invalid URI
-    assert!(
-        result.is_err(),
-        "Expected error with invalid URI format"
-    );
+    assert!(result.is_err(), "Expected error with invalid URI format");
 }
 
 #[tokio::test]
@@ -142,14 +133,11 @@ async fn test_connect_neo4j_with_http_uri() {
     let uri = "http://localhost:7474";
     let user = "neo4j";
     let password = "password";
-    
+
     let result = connect_neo4j(uri, user, password).await;
-    
+
     // Should fail - HTTP is not valid for Neo4j driver
-    assert!(
-        result.is_err(),
-        "Expected error with HTTP URI"
-    );
+    assert!(result.is_err(), "Expected error with HTTP URI");
 }
 
 // ============================================================================
@@ -162,15 +150,12 @@ async fn test_connect_neo4j_with_special_chars_in_password() {
     let uri = "bolt://localhost:7687";
     let user = "neo4j";
     let password = "p@ssw0rd!#$%^&*()";
-    
+
     let result = connect_neo4j(uri, user, password).await;
-    
+
     // Should accept special characters in password
     // (will fail on connection, but that's expected)
-    assert!(
-        result.is_err(),
-        "Expected connection error without server"
-    );
+    assert!(result.is_err(), "Expected connection error without server");
 }
 
 #[tokio::test]
@@ -179,14 +164,11 @@ async fn test_connect_neo4j_with_unicode_in_password() {
     let uri = "bolt://localhost:7687";
     let user = "neo4j";
     let password = "пароль密码🔐";
-    
+
     let result = connect_neo4j(uri, user, password).await;
-    
+
     // Should handle unicode in password
-    assert!(
-        result.is_err(),
-        "Expected connection error without server"
-    );
+    assert!(result.is_err(), "Expected connection error without server");
 }
 
 #[tokio::test]
@@ -195,9 +177,9 @@ async fn test_connect_neo4j_with_whitespace_in_params() {
     let uri = " bolt://localhost:7687 ";
     let user = " neo4j ";
     let password = " password ";
-    
+
     let result = connect_neo4j(uri, user, password).await;
-    
+
     // Should fail - whitespace should not be trimmed automatically
     assert!(
         result.is_err(),
@@ -215,14 +197,11 @@ async fn test_connect_neo4j_with_non_standard_port() {
     let uri = "bolt://localhost:9999";
     let user = "neo4j";
     let password = "password";
-    
+
     let result = connect_neo4j(uri, user, password).await;
-    
+
     // Should accept non-standard port
-    assert!(
-        result.is_err(),
-        "Expected connection error without server"
-    );
+    assert!(result.is_err(), "Expected connection error without server");
 }
 
 #[tokio::test]
@@ -231,14 +210,11 @@ async fn test_connect_neo4j_without_port() {
     let uri = "bolt://localhost";
     let user = "neo4j";
     let password = "password";
-    
+
     let result = connect_neo4j(uri, user, password).await;
-    
+
     // Should use default port
-    assert!(
-        result.is_err(),
-        "Expected connection error without server"
-    );
+    assert!(result.is_err(), "Expected connection error without server");
 }
 
 // ============================================================================
@@ -251,14 +227,11 @@ async fn test_connect_neo4j_with_ipv4_address() {
     let uri = "bolt://192.168.1.100:7687";
     let user = "neo4j";
     let password = "password";
-    
+
     let result = connect_neo4j(uri, user, password).await;
-    
+
     // Should accept IPv4 address
-    assert!(
-        result.is_err(),
-        "Expected connection error without server"
-    );
+    assert!(result.is_err(), "Expected connection error without server");
 }
 
 #[tokio::test]
@@ -267,14 +240,11 @@ async fn test_connect_neo4j_with_ipv6_address() {
     let uri = "bolt://[::1]:7687";
     let user = "neo4j";
     let password = "password";
-    
+
     let result = connect_neo4j(uri, user, password).await;
-    
+
     // Should accept IPv6 address
-    assert!(
-        result.is_err(),
-        "Expected connection error without server"
-    );
+    assert!(result.is_err(), "Expected connection error without server");
 }
 
 #[tokio::test]
@@ -283,14 +253,11 @@ async fn test_connect_neo4j_with_domain_name() {
     let uri = "bolt://neo4j.production.example.com:7687";
     let user = "produser";
     let password = "prodpassword";
-    
+
     let result = connect_neo4j(uri, user, password).await;
-    
+
     // Should accept FQDN
-    assert!(
-        result.is_err(),
-        "Expected connection error without server"
-    );
+    assert!(result.is_err(), "Expected connection error without server");
 }
 
 // ============================================================================
@@ -303,14 +270,11 @@ async fn test_connect_neo4j_with_long_username() {
     let uri = "bolt://localhost:7687";
     let user = &"a".repeat(1000);
     let password = "password";
-    
+
     let result = connect_neo4j(uri, user, password).await;
-    
+
     // Should handle long username (fail on connection)
-    assert!(
-        result.is_err(),
-        "Expected connection error without server"
-    );
+    assert!(result.is_err(), "Expected connection error without server");
 }
 
 #[tokio::test]
@@ -319,14 +283,11 @@ async fn test_connect_neo4j_with_long_password() {
     let uri = "bolt://localhost:7687";
     let user = "neo4j";
     let password = &"p".repeat(1000);
-    
+
     let result = connect_neo4j(uri, user, password).await;
-    
+
     // Should handle long password (fail on connection)
-    assert!(
-        result.is_err(),
-        "Expected connection error without server"
-    );
+    assert!(result.is_err(), "Expected connection error without server");
 }
 
 // ============================================================================
@@ -339,22 +300,19 @@ async fn test_connect_neo4j_propagates_connection_errors() {
     let uri = "bolt://nonexistent.host.that.does.not.exist:7687";
     let user = "neo4j";
     let password = "password";
-    
+
     let result = connect_neo4j(uri, user, password).await;
-    
+
     // Should return an error (wrapped in anyhow::Error)
     assert!(result.is_err(), "Expected error to be propagated");
-    
+
     // Error should be available for inspection
     if let Err(err) = result {
         let err_str = format!("{}", err);
-        
+
         // Error message should contain relevant information
         // (either connection failure, timeout, or DNS resolution failure)
-        assert!(
-            !err_str.is_empty(),
-            "Error message should not be empty"
-        );
+        assert!(!err_str.is_empty(), "Error message should not be empty");
     }
 }
 
@@ -368,7 +326,7 @@ async fn test_connect_neo4j_propagates_connection_errors() {
 /// This test documents how the function should be called in production:
 /// ```no_run
 /// use anyhow::Result;
-/// 
+///
 /// async fn example_usage() -> Result<()> {
 ///     let uri = "bolt://localhost:7687";
 ///     let user = "neo4j";
@@ -388,13 +346,13 @@ async fn test_connect_neo4j_usage_documentation() {
     let uri = "bolt://localhost:7687";
     let user = "neo4j";
     let password = "password";
-    
+
     // Function accepts string slices
     let result = connect_neo4j(uri, user, password).await;
-    
+
     // Without a real server, we expect an error
     assert!(result.is_err());
-    
+
     // The function returns anyhow::Result<Neo4jClient>
     // On success, it would return Ok(Neo4jClient)
     // On failure, it returns Err(anyhow::Error)

@@ -21,9 +21,9 @@ use mother_core::lsp::LspServerManager;
 use mother_core::scanner::{DiscoveredFile, Language, Scanner};
 use tracing::info;
 
-pub use phase1::Phase1Result;
-pub use phase2::Phase2Result;
-pub use phase3::Phase3Result;
+pub(crate) use phase1::Phase1Result;
+pub(crate) use phase2::Phase2Result;
+pub(crate) use phase3::Phase3Result;
 
 // ============================================================================
 // Types shared across phases
