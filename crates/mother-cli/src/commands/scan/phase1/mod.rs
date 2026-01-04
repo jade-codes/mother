@@ -42,7 +42,7 @@ pub async fn run(
 }
 
 /// Handle the result of processing a single file
-fn handle_file_result(
+pub(crate) fn handle_file_result(
     outcome: Result<Option<FileToProcess>>,
     file: &DiscoveredFile,
     result: &mut Phase1Result,
@@ -108,3 +108,6 @@ async fn process_file(
         language: file.language,
     }))
 }
+
+#[cfg(test)]
+mod tests;
