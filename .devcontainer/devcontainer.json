@@ -2,13 +2,11 @@
   "name": "mother",
   "image": "mcr.microsoft.com/devcontainers/rust:1-bookworm",
   "features": {
-    "ghcr.io/devcontainers/features/github-cli:1": {
-      "version": "latest"
-    },
+    "ghcr.io/devcontainers/features/github-cli:1": {},
     "ghcr.io/devcontainers/features/docker-outside-of-docker:1": {},
-    "ghcr.io/devcontainers/features/node:1": {
-      "version": "lts"
-    }
+    "ghcr.io/devcontainers/features/node:1": { "version": "lts" },
+    "ghcr.io/devcontainers/features/go:1": {},
+    "ghcr.io/devcontainers/features/python:1": { "version": "3.12" }
   },
   "customizations": {
     "vscode": {
@@ -29,6 +27,6 @@
     }
   },
   "forwardPorts": [7687, 7474],
-  "postCreateCommand": "rustc --version && cargo --version && npm install -g typescript typescript-language-server && cargo install --git https://github.com/jade-codes/syster syster-lsp",
+  "postCreateCommand": "bash .devcontainer/setup.sh",
   "remoteUser": "vscode"
 }

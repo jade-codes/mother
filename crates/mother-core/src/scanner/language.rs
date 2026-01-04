@@ -9,6 +9,7 @@ pub enum Language {
     Python,
     TypeScript,
     JavaScript,
+    Go,
     SysML,
     KerML,
 }
@@ -22,6 +23,7 @@ impl Language {
             "py" => Some(Self::Python),
             "ts" | "tsx" => Some(Self::TypeScript),
             "js" | "jsx" | "mjs" | "cjs" => Some(Self::JavaScript),
+            "go" => Some(Self::Go),
             "sysml" => Some(Self::SysML),
             "kerml" => Some(Self::KerML),
             _ => None,
@@ -44,6 +46,7 @@ impl Language {
             Self::Python => &["py"],
             Self::TypeScript => &["ts", "tsx"],
             Self::JavaScript => &["js", "jsx", "mjs", "cjs"],
+            Self::Go => &["go"],
             Self::SysML => &["sysml"],
             Self::KerML => &["kerml"],
         }
@@ -57,6 +60,7 @@ impl std::fmt::Display for Language {
             Self::Python => write!(f, "python"),
             Self::TypeScript => write!(f, "typescript"),
             Self::JavaScript => write!(f, "javascript"),
+            Self::Go => write!(f, "go"),
             Self::SysML => write!(f, "sysml"),
             Self::KerML => write!(f, "kerml"),
         }

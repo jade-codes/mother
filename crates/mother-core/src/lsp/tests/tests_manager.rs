@@ -230,6 +230,18 @@ fn test_defaults_for_javascript() {
 }
 
 #[test]
+fn test_defaults_for_go() {
+    let root = PathBuf::from("/tmp/test");
+    let config = LspServerDefaults::for_language(Language::Go, &root);
+
+    assert_eq!(config.language, Language::Go);
+    assert_eq!(config.command, "gopls");
+    assert!(config.args.is_empty());
+    assert_eq!(config.root_path, root);
+    assert!(config.init_options.is_none());
+}
+
+#[test]
 fn test_defaults_for_sysml() {
     let root = PathBuf::from("/tmp/test");
     let config = LspServerDefaults::for_language(Language::SysML, &root);
@@ -393,6 +405,7 @@ fn test_defaults_for_all_languages() {
         Language::Python,
         Language::TypeScript,
         Language::JavaScript,
+        Language::Go,
         Language::SysML,
         Language::KerML,
     ];

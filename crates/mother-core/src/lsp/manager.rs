@@ -41,6 +41,13 @@ impl LspServerDefaults {
                 root_path: root,
                 init_options: None,
             },
+            Language::Go => LspServerConfig {
+                language,
+                command: "gopls".to_string(),
+                args: vec![],
+                root_path: root,
+                init_options: None,
+            },
             Language::SysML | Language::KerML => {
                 // Find sysml.library in the project or use system default
                 let stdlib_path = root

@@ -11,6 +11,7 @@ fn test_language_from_extension() {
     assert_eq!(Language::from_extension("tsx"), Some(Language::TypeScript));
     assert_eq!(Language::from_extension("js"), Some(Language::JavaScript));
     assert_eq!(Language::from_extension("jsx"), Some(Language::JavaScript));
+    assert_eq!(Language::from_extension("go"), Some(Language::Go));
     assert_eq!(Language::from_extension("sysml"), Some(Language::SysML));
     assert_eq!(Language::from_extension("kerml"), Some(Language::KerML));
     assert_eq!(Language::from_extension("txt"), None);
@@ -35,6 +36,10 @@ fn test_language_from_path() {
         Some(Language::SysML)
     );
     assert_eq!(
+        Language::from_path(Path::new("main.go")),
+        Some(Language::Go)
+    );
+    assert_eq!(
         Language::from_path(Path::new("kernel.kerml")),
         Some(Language::KerML)
     );
@@ -47,6 +52,7 @@ fn test_language_display() {
     assert_eq!(format!("{}", Language::Python), "python");
     assert_eq!(format!("{}", Language::TypeScript), "typescript");
     assert_eq!(format!("{}", Language::JavaScript), "javascript");
+    assert_eq!(format!("{}", Language::Go), "go");
     assert_eq!(format!("{}", Language::SysML), "sysml");
     assert_eq!(format!("{}", Language::KerML), "kerml");
 }
