@@ -9,6 +9,9 @@ mod phase1;
 mod phase2;
 mod phase3;
 
+#[cfg(test)]
+mod tests;
+
 use std::path::Path;
 
 use anyhow::Result;
@@ -18,9 +21,9 @@ use mother_core::lsp::LspServerManager;
 use mother_core::scanner::{DiscoveredFile, Language, Scanner};
 use tracing::info;
 
-pub use phase1::Phase1Result;
-pub use phase2::Phase2Result;
-pub use phase3::Phase3Result;
+pub(crate) use phase1::Phase1Result;
+pub(crate) use phase2::Phase2Result;
+pub(crate) use phase3::Phase3Result;
 
 // ============================================================================
 // Types shared across phases
@@ -140,7 +143,7 @@ fn log_scan_run_info(scan_run: &ScanRun, commit_sha: &str) {
     );
 }
 
-async fn connect_neo4j(uri: &str, user: &str, password: &str) -> Result<Neo4jClient> {
+pub(crate) async fn connect_neo4j(uri: &str, user: &str, password: &str) -> Result<Neo4jClient> {
     let config = Neo4jConfig::new(uri, user, password);
     Ok(Neo4jClient::connect(&config).await?)
 }
