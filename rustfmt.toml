@@ -1,13 +1,11 @@
-# Rust 2024 edition - use stable defaults
-edition = "2024"
+# Rust formatting - stable options only
+edition = "2021"
 
 # Basic formatting rules
 max_width = 100
 tab_spaces = 4
 use_small_heuristics = "Default"
 
-# Imports
-imports_granularity = "Module"
-group_imports = "StdExternalCrate"
+# Imports (stable options only)
 reorder_imports = true
 reorder_modules = true

@@ -1,7 +1,7 @@
 //! mother-cli: CLI for AST graph ingestion
 
 use clap::{Parser, Subcommand};
-use tracing_subscriber::{EnvFilter, fmt, prelude::*};
+use tracing_subscriber::{fmt, prelude::*, EnvFilter};
 
 mod commands;
 

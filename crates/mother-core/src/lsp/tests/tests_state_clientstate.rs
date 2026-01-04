@@ -2,12 +2,12 @@
 
 use std::ops::ControlFlow;
 
-use async_lsp::LanguageClient;
 use async_lsp::lsp_types::{
     LogMessageParams, MessageType, ProgressParams, ProgressParamsValue, ProgressToken,
     PublishDiagnosticsParams, ShowMessageParams, WorkDoneProgress, WorkDoneProgressBegin,
     WorkDoneProgressCreateParams, WorkDoneProgressEnd,
 };
+use async_lsp::LanguageClient;
 use futures::channel::oneshot;
 
 use crate::lsp::state::ClientState;

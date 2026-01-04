@@ -3,12 +3,12 @@
 use std::path::Path;
 
 use anyhow::Result;
-use async_lsp::LanguageServer;
 use async_lsp::lsp_types::{
     DocumentSymbolParams, DocumentSymbolResponse, GotoDefinitionParams, GotoDefinitionResponse,
     HoverContents, HoverParams, Position, ReferenceContext, ReferenceParams,
     TextDocumentIdentifier, TextDocumentPositionParams, Url,
 };
+use async_lsp::LanguageServer;
 
 use super::client::LspClient;
 use super::convert::{convert_symbol_response, marked_string_to_string};

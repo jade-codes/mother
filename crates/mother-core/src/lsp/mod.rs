@@ -17,8 +17,8 @@ pub use convert::{
 };
 pub use manager::{LspServerDefaults, LspServerManager};
 pub use types::{
-    LspReference, LspServerConfig, LspSymbol, LspSymbolKind, collect_symbol_positions,
-    flatten_symbols,
+    collect_symbol_positions, flatten_symbols, LspReference, LspServerConfig, LspSymbol,
+    LspSymbolKind,
 };
 
 #[cfg(test)]

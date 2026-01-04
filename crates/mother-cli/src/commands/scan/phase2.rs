@@ -5,9 +5,8 @@ use mother_core::graph::convert::convert_symbols;
 use mother_core::graph::model::SymbolNode;
 use mother_core::graph::neo4j::Neo4jClient;
 use mother_core::lsp::{
-    LspClient, LspServerManager, LspSymbol,
     collect_symbol_positions as collect_lsp_symbol_positions,
-    flatten_symbols as flatten_lsp_symbols,
+    flatten_symbols as flatten_lsp_symbols, LspClient, LspServerManager, LspSymbol,
 };
 use mother_core::scanner::Language;
 use tracing::info;
