@@ -15,10 +15,22 @@ use mother_core::lsp::{LspClient, LspServerDefaults};
 use mother_core::scanner::Language;
 use tempfile::TempDir;
 
-/// Helper to check if a command exists on PATH
+/// Helper to check if a command exists on PATH and is functional
 fn command_exists(cmd: &str) -> bool {
-    std::process::Command::new("which")
+    // First check if the command exists
+    let exists = std::process::Command::new("which")
         .arg(cmd)
+        .output()
+        .map(|o| o.status.success())
+        .unwrap_or(false);
+
+    if !exists {
+        return false;
+    }
+
+    // Then verify it's actually functional by running with --version
+    std::process::Command::new(cmd)
+        .arg("--version")
         .output()
         .map(|o| o.status.success())
         .unwrap_or(false)
