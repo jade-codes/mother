@@ -497,3 +497,460 @@ fn test_defaults_with_different_root_paths() {
         assert_eq!(config.root_path, root);
     }
 }
+
+// ============================================================================
+// Comprehensive tests for LspServerDefaults::for_language closure logic
+// ============================================================================
+
+#[test]
+fn test_sysml_stdlib_path_with_existing_project_path() -> anyhow::Result<()> {
+    // Create a temporary directory structure that mimics the project
+    let temp = TempDir::new()?;
+    let crates_dir = temp.path().join("crates");
+    std::fs::create_dir_all(&crates_dir)?;
+    let syster_base = crates_dir.join("syster-base");
+    std::fs::create_dir_all(&syster_base)?;
+    let sysml_library = syster_base.join("sysml.library");
+    std::fs::create_dir_all(&sysml_library)?;
+
+    let config = LspServerDefaults::for_language(Language::SysML, temp.path());
+
+    assert_eq!(config.language, Language::SysML);
+    assert_eq!(config.command, "syster-lsp");
+    assert!(config.args.is_empty());
+    assert_eq!(config.root_path, temp.path());
+
+    // Should have init_options with both stdlibEnabled and stdlibPath
+    assert!(config.init_options.is_some());
+    if let Some(options) = config.init_options {
+        assert_eq!(options["stdlibEnabled"], true);
+        assert!(options.get("stdlibPath").is_some());
+        // The path should be set to the canonicalized library path
+        if let Some(path) = options["stdlibPath"].as_str() {
+            assert!(!path.is_empty());
+        }
+    }
+    Ok(())
+}
+
+#[test]
+fn test_sysml_stdlib_path_when_project_path_not_exists() {
+    // Use a non-existent directory
+    let root = PathBuf::from("/nonexistent/test/path");
+    let config = LspServerDefaults::for_language(Language::SysML, &root);
+
+    assert_eq!(config.language, Language::SysML);
+    assert_eq!(config.command, "syster-lsp");
+    assert!(config.args.is_empty());
+    assert_eq!(config.root_path, root);
+
+    // Should still have init_options with stdlibEnabled
+    assert!(config.init_options.is_some());
+    if let Some(options) = config.init_options {
+        assert_eq!(options["stdlibEnabled"], true);
+        // May or may not have stdlibPath depending on system installation
+        // but should at least have stdlibEnabled
+    }
+}
+
+#[test]
+fn test_kerml_stdlib_path_with_existing_project_path() -> anyhow::Result<()> {
+    // Create a temporary directory structure that mimics the project
+    let temp = TempDir::new()?;
+    let crates_dir = temp.path().join("crates");
+    std::fs::create_dir_all(&crates_dir)?;
+    let syster_base = crates_dir.join("syster-base");
+    std::fs::create_dir_all(&syster_base)?;
+    let sysml_library = syster_base.join("sysml.library");
+    std::fs::create_dir_all(&sysml_library)?;
+
+    let config = LspServerDefaults::for_language(Language::KerML, temp.path());
+
+    assert_eq!(config.language, Language::KerML);
+    assert_eq!(config.command, "syster-lsp");
+    assert!(config.args.is_empty());
+    assert_eq!(config.root_path, temp.path());
+
+    // Should have init_options with both stdlibEnabled and stdlibPath
+    assert!(config.init_options.is_some());
+    if let Some(options) = config.init_options {
+        assert_eq!(options["stdlibEnabled"], true);
+        assert!(options.get("stdlibPath").is_some());
+        // The path should be set to the canonicalized library path
+        if let Some(path) = options["stdlibPath"].as_str() {
+            assert!(!path.is_empty());
+        }
+    }
+    Ok(())
+}
+
+#[test]
+fn test_kerml_stdlib_path_when_project_path_not_exists() {
+    // Use a non-existent directory
+    let root = PathBuf::from("/nonexistent/test/path");
+    let config = LspServerDefaults::for_language(Language::KerML, &root);
+
+    assert_eq!(config.language, Language::KerML);
+    assert_eq!(config.command, "syster-lsp");
+    assert!(config.args.is_empty());
+    assert_eq!(config.root_path, root);
+
+    // Should still have init_options with stdlibEnabled
+    assert!(config.init_options.is_some());
+    if let Some(options) = config.init_options {
+        assert_eq!(options["stdlibEnabled"], true);
+        // May or may not have stdlibPath depending on system installation
+    }
+}
+
+#[test]
+fn test_sysml_kerml_stdlib_path_closure_handles_canonicalize_failure() {
+    // Test the closure that handles .canonicalize().ok() returning None
+    // This happens when the path exists but cannot be canonicalized
+    let root = PathBuf::from("/tmp");
+    let config = LspServerDefaults::for_language(Language::SysML, &root);
+
+    // Should succeed even if canonicalization fails
+    assert_eq!(config.language, Language::SysML);
+    assert_eq!(config.command, "syster-lsp");
+    assert!(config.init_options.is_some());
+}
+
+#[test]
+fn test_sysml_stdlib_fallback_to_exe_relative_path() {
+    // This tests the or_else closure that tries to find stdlib relative to exe
+    let root = PathBuf::from("/nonexistent/path/without/stdlib");
+    let config = LspServerDefaults::for_language(Language::SysML, &root);
+
+    // Should still create valid config with init_options
+    assert_eq!(config.language, Language::SysML);
+    assert_eq!(config.command, "syster-lsp");
+    assert!(config.init_options.is_some());
+
+    // The init_options should at minimum have stdlibEnabled: true
+    if let Some(options) = config.init_options {
+        assert_eq!(options["stdlibEnabled"], true);
+    }
+}
+
+#[test]
+fn test_kerml_stdlib_fallback_to_exe_relative_path() {
+    // This tests the or_else closure that tries to find stdlib relative to exe
+    let root = PathBuf::from("/nonexistent/path/without/stdlib");
+    let config = LspServerDefaults::for_language(Language::KerML, &root);
+
+    // Should still create valid config with init_options
+    assert_eq!(config.language, Language::KerML);
+    assert_eq!(config.command, "syster-lsp");
+    assert!(config.init_options.is_some());
+
+    // The init_options should at minimum have stdlibEnabled: true
+    if let Some(options) = config.init_options {
+        assert_eq!(options["stdlibEnabled"], true);
+    }
+}
+
+// ============================================================================
+// Edge case tests for closure logic
+// ============================================================================
+
+#[test]
+fn test_defaults_for_language_with_empty_path() {
+    let root = PathBuf::from("");
+    let config = LspServerDefaults::for_language(Language::Rust, &root);
+
+    assert_eq!(config.language, Language::Rust);
+    assert_eq!(config.command, "rust-analyzer");
+    assert_eq!(config.root_path, root);
+}
+
+#[test]
+fn test_defaults_for_language_with_current_dir() {
+    let root = PathBuf::from(".");
+    let config = LspServerDefaults::for_language(Language::Python, &root);
+
+    assert_eq!(config.language, Language::Python);
+    assert_eq!(config.command, "pyright-langserver");
+    assert_eq!(config.root_path, root);
+}
+
+#[test]
+fn test_defaults_for_language_with_parent_dir() {
+    let root = PathBuf::from("..");
+    let config = LspServerDefaults::for_language(Language::Go, &root);
+
+    assert_eq!(config.language, Language::Go);
+    assert_eq!(config.command, "gopls");
+    assert_eq!(config.root_path, root);
+}
+
+#[test]
+fn test_sysml_with_relative_path() {
+    let root = PathBuf::from("./some/relative/path");
+    let config = LspServerDefaults::for_language(Language::SysML, &root);
+
+    assert_eq!(config.language, Language::SysML);
+    assert_eq!(config.command, "syster-lsp");
+    assert_eq!(config.root_path, root);
+    assert!(config.init_options.is_some());
+}
+
+#[test]
+fn test_kerml_with_relative_path() {
+    let root = PathBuf::from("./some/relative/path");
+    let config = LspServerDefaults::for_language(Language::KerML, &root);
+
+    assert_eq!(config.language, Language::KerML);
+    assert_eq!(config.command, "syster-lsp");
+    assert_eq!(config.root_path, root);
+    assert!(config.init_options.is_some());
+}
+
+#[test]
+fn test_typescript_javascript_shared_server() {
+    // Both TypeScript and JavaScript use the same server
+    let root = PathBuf::from("/test");
+
+    let ts_config = LspServerDefaults::for_language(Language::TypeScript, &root);
+    let js_config = LspServerDefaults::for_language(Language::JavaScript, &root);
+
+    assert_eq!(ts_config.command, js_config.command);
+    assert_eq!(ts_config.args, js_config.args);
+    assert_eq!(ts_config.command, "typescript-language-server");
+    assert_eq!(ts_config.args, vec!["--stdio"]);
+}
+
+#[test]
+fn test_sysml_kerml_shared_server() {
+    // Both SysML and KerML use the same server
+    let root = PathBuf::from("/test");
+
+    let sysml_config = LspServerDefaults::for_language(Language::SysML, &root);
+    let kerml_config = LspServerDefaults::for_language(Language::KerML, &root);
+
+    assert_eq!(sysml_config.command, kerml_config.command);
+    assert_eq!(sysml_config.args, kerml_config.args);
+    assert_eq!(sysml_config.command, "syster-lsp");
+    assert!(sysml_config.args.is_empty());
+
+    // Both should have init_options
+    assert!(sysml_config.init_options.is_some());
+    assert!(kerml_config.init_options.is_some());
+}
+
+#[test]
+fn test_config_language_preservation() {
+    // Ensure that the language field is correctly set for each variant
+    let root = PathBuf::from("/test");
+
+    let rust = LspServerDefaults::for_language(Language::Rust, &root);
+    assert_eq!(rust.language, Language::Rust);
+
+    let python = LspServerDefaults::for_language(Language::Python, &root);
+    assert_eq!(python.language, Language::Python);
+
+    let ts = LspServerDefaults::for_language(Language::TypeScript, &root);
+    assert_eq!(ts.language, Language::TypeScript);
+
+    let js = LspServerDefaults::for_language(Language::JavaScript, &root);
+    assert_eq!(js.language, Language::JavaScript);
+
+    let go = LspServerDefaults::for_language(Language::Go, &root);
+    assert_eq!(go.language, Language::Go);
+
+    let sysml = LspServerDefaults::for_language(Language::SysML, &root);
+    assert_eq!(sysml.language, Language::SysML);
+
+    let kerml = LspServerDefaults::for_language(Language::KerML, &root);
+    assert_eq!(kerml.language, Language::KerML);
+}
+
+// ============================================================================
+// Boundary and stress tests
+// ============================================================================
+
+#[test]
+fn test_defaults_with_very_long_path() {
+    // Test with a very long path name
+    let long_component = "a".repeat(255);
+    let long_path = format!(
+        "/tmp/{}/{}/{}",
+        long_component, long_component, long_component
+    );
+    let root = PathBuf::from(long_path);
+
+    let config = LspServerDefaults::for_language(Language::Rust, &root);
+    assert_eq!(config.root_path, root);
+}
+
+#[test]
+fn test_defaults_with_special_characters_in_path() {
+    // Test with special characters that are valid in paths
+    let special_paths = vec![
+        PathBuf::from("/tmp/test with spaces"),
+        PathBuf::from("/tmp/test-with-dashes"),
+        PathBuf::from("/tmp/test_with_underscores"),
+        PathBuf::from("/tmp/test.with.dots"),
+        PathBuf::from("/tmp/test@special#chars"),
+    ];
+
+    for root in special_paths {
+        let config = LspServerDefaults::for_language(Language::Python, &root);
+        assert_eq!(config.root_path, root);
+    }
+}
+
+#[test]
+fn test_sysml_init_options_structure() {
+    // Test that SysML init_options have the correct structure
+    let root = PathBuf::from("/test");
+    let config = LspServerDefaults::for_language(Language::SysML, &root);
+
+    assert!(config.init_options.is_some());
+    if let Some(options) = config.init_options {
+        // Must have stdlibEnabled
+        assert!(options.is_object());
+        assert!(options.get("stdlibEnabled").is_some());
+        assert_eq!(options["stdlibEnabled"], true);
+
+        // May have stdlibPath
+        if let Some(path) = options.get("stdlibPath") {
+            assert!(path.is_string());
+            if let Some(s) = path.as_str() {
+                assert!(!s.is_empty());
+            }
+        }
+    }
+}
+
+#[test]
+fn test_kerml_init_options_structure() {
+    // Test that KerML init_options have the correct structure
+    let root = PathBuf::from("/test");
+    let config = LspServerDefaults::for_language(Language::KerML, &root);
+
+    assert!(config.init_options.is_some());
+    if let Some(options) = config.init_options {
+        // Must have stdlibEnabled
+        assert!(options.is_object());
+        assert!(options.get("stdlibEnabled").is_some());
+        assert_eq!(options["stdlibEnabled"], true);
+
+        // May have stdlibPath
+        if let Some(path) = options.get("stdlibPath") {
+            assert!(path.is_string());
+            if let Some(s) = path.as_str() {
+                assert!(!s.is_empty());
+            }
+        }
+    }
+}
+
+#[test]
+fn test_non_sysml_languages_no_init_options() {
+    // Verify that non-SysML/KerML languages don't have init_options by default
+    let root = PathBuf::from("/test");
+
+    let languages = vec![
+        Language::Rust,
+        Language::Python,
+        Language::TypeScript,
+        Language::JavaScript,
+        Language::Go,
+    ];
+
+    for language in languages {
+        let config = LspServerDefaults::for_language(language, &root);
+        assert!(
+            config.init_options.is_none(),
+            "Language {:?} should not have init_options",
+            language
+        );
+    }
+}
+
+#[test]
+fn test_all_languages_have_nonempty_command() {
+    // Verify that all languages return a non-empty command
+    let root = PathBuf::from("/test");
+
+    let languages = vec![
+        Language::Rust,
+        Language::Python,
+        Language::TypeScript,
+        Language::JavaScript,
+        Language::Go,
+        Language::SysML,
+        Language::KerML,
+    ];
+
+    for language in languages {
+        let config = LspServerDefaults::for_language(language, &root);
+        assert!(
+            !config.command.is_empty(),
+            "Language {:?} should have a non-empty command",
+            language
+        );
+    }
+}
+
+#[test]
+fn test_all_languages_preserve_exact_root_path() {
+    // Ensure root_path is preserved exactly without modification
+    let test_paths = vec![
+        PathBuf::from("/absolute/path"),
+        PathBuf::from("relative/path"),
+        PathBuf::from("./current"),
+        PathBuf::from("../parent"),
+        PathBuf::from(""),
+    ];
+
+    let languages = vec![
+        Language::Rust,
+        Language::Python,
+        Language::TypeScript,
+        Language::JavaScript,
+        Language::Go,
+        Language::SysML,
+        Language::KerML,
+    ];
+
+    for path in test_paths {
+        for language in &languages {
+            let config = LspServerDefaults::for_language(*language, &path);
+            assert_eq!(
+                config.root_path, path,
+                "Root path should be preserved exactly for {:?}",
+                language
+            );
+        }
+    }
+}
+
+#[test]
+fn test_rust_config_consistency() {
+    // Test multiple calls return consistent results
+    let root = PathBuf::from("/test");
+
+    let config1 = LspServerDefaults::for_language(Language::Rust, &root);
+    let config2 = LspServerDefaults::for_language(Language::Rust, &root);
+
+    assert_eq!(config1.language, config2.language);
+    assert_eq!(config1.command, config2.command);
+    assert_eq!(config1.args, config2.args);
+    assert_eq!(config1.root_path, config2.root_path);
+}
+
+#[test]
+fn test_python_config_consistency() {
+    // Test multiple calls return consistent results
+    let root = PathBuf::from("/test");
+
+    let config1 = LspServerDefaults::for_language(Language::Python, &root);
+    let config2 = LspServerDefaults::for_language(Language::Python, &root);
+
+    assert_eq!(config1.language, config2.language);
+    assert_eq!(config1.command, config2.command);
+    assert_eq!(config1.args, config2.args);
+    assert_eq!(config1.root_path, config2.root_path);
+}
