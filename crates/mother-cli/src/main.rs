@@ -8,8 +8,6 @@ mod types;
 
 use types::QueryCommands;
 
-use commands::QueryCommands;
-
 #[derive(Parser)]
 #[command(name = "mother")]
 #[command(author, version, about = "AST graph ingestion tool", long_about = None)]

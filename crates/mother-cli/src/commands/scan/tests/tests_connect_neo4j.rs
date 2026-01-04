@@ -323,31 +323,16 @@ async fn test_connect_neo4j_propagates_connection_errors() {
 /// Test that demonstrates the expected successful usage pattern
 /// (would work with a real Neo4j instance)
 ///
-/// This test documents how the function should be called in production:
-/// ```no_run
-/// use anyhow::Result;
-///
-/// async fn example_usage() -> Result<()> {
-///     let uri = "bolt://localhost:7687";
-///     let user = "neo4j";
-///     let password = "secure_password";
-///     
-///     // This would succeed with a running Neo4j instance
-///     let client = mother_cli::commands::scan::connect_neo4j(
-///         uri, user, password
-///     ).await?;
-///     
-///     Ok(())
-/// }
-/// ```
+/// This test documents how the function is used internally within the crate.
+/// Note: `connect_neo4j` is `pub(crate)` and not part of the public API.
 #[tokio::test]
 async fn test_connect_neo4j_usage_documentation() {
-    // This test serves as documentation for proper usage
+    // This test serves as documentation for proper internal usage
     let uri = "bolt://localhost:7687";
     let user = "neo4j";
     let password = "password";
 
-    // Function accepts string slices
+    // Function accepts string slices and returns Result<Neo4jClient>
     let result = connect_neo4j(uri, user, password).await;
 
     // Without a real server, we expect an error
