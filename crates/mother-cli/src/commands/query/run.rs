@@ -4,7 +4,7 @@ use anyhow::Result;
 use mother_core::graph::neo4j::{Neo4jClient, Neo4jConfig};
 use tracing::info;
 
-use crate::QueryCommands;
+use crate::types::QueryCommands;
 
 /// Run the query command
 ///
@@ -216,5 +216,73 @@ fn truncate_path(path: &str, max_len: usize) -> String {
     } else {
         // Show the end of the path (more useful)
         format!("...{}", &path[path.len() - max_len + 3..])
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_truncate_str_shorter_than_max() {
+        assert_eq!(truncate_str("hello", 10), "hello");
+    }
+
+    #[test]
+    fn test_truncate_str_equal_to_max() {
+        assert_eq!(truncate_str("hello", 5), "hello");
+    }
+
+    #[test]
+    fn test_truncate_str_longer_than_max() {
+        assert_eq!(truncate_str("hello_world", 8), "hello...");
+    }
+
+    #[test]
+    fn test_truncate_str_with_exactly_max_plus_three() {
+        // Edge case: string length == max_len, no truncation
+        assert_eq!(truncate_str("hello", 5), "hello");
+        // String longer by 1
+        assert_eq!(truncate_str("hello!", 5), "he...");
+    }
+
+    #[test]
+    fn test_truncate_str_empty() {
+        assert_eq!(truncate_str("", 10), "");
+    }
+
+    #[test]
+    fn test_truncate_path_shorter_than_max() {
+        assert_eq!(truncate_path("/usr/local/bin", 20), "/usr/local/bin");
+    }
+
+    #[test]
+    fn test_truncate_path_equal_to_max() {
+        let path = "/usr/bin";
+        assert_eq!(truncate_path(path, path.len()), path);
+    }
+
+    #[test]
+    fn test_truncate_path_longer_than_max() {
+        // Path: /very/long/path/to/some/file.rs (31 chars)
+        // max_len: 20, so we show last 17 chars with "..." prefix
+        let path = "/very/long/path/to/some/file.rs";
+        let result = truncate_path(path, 20);
+        assert_eq!(result, "...h/to/some/file.rs");
+        assert_eq!(result.len(), 20);
+    }
+
+    #[test]
+    fn test_truncate_path_shows_end_of_path() {
+        let path = "/home/user/projects/rust/mother/src/commands/query.rs";
+        let result = truncate_path(path, 30);
+        assert!(result.starts_with("..."));
+        assert!(result.ends_with("query.rs"));
+        assert_eq!(result.len(), 30);
+    }
+
+    #[test]
+    fn test_truncate_path_empty() {
+        assert_eq!(truncate_path("", 10), "");
     }
 }

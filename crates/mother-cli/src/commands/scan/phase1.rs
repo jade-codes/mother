@@ -10,7 +10,7 @@ use super::FileToProcess;
 
 /// Results from Phase 1
 pub struct Phase1Result {
-    pub files_to_process: Vec<FileToProcess>,
+    pub(crate) files_to_process: Vec<FileToProcess>,
     pub new_file_count: usize,
     pub reused_file_count: usize,
     pub error_count: usize,

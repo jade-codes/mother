@@ -15,7 +15,7 @@ use super::{FileToProcess, SymbolInfo};
 
 /// Results from Phase 2
 pub struct Phase2Result {
-    pub symbols: Vec<SymbolInfo>,
+    pub(crate) symbols: Vec<SymbolInfo>,
     pub symbol_count: usize,
     pub error_count: usize,
 }
