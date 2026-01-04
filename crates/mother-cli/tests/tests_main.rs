@@ -13,8 +13,8 @@ use std::path::PathBuf;
 // For now, we'll test the CLI by parsing arguments as strings.
 
 /// Helper to parse CLI arguments from a string slice
-fn parse_args(args: &[&str]) -> Result<Vec<String>, String> {
-    Ok(args.iter().map(|s| s.to_string()).collect())
+fn parse_args(args: &[&str]) -> Vec<String> {
+    args.iter().map(|s| s.to_string()).collect()
 }
 
 #[test]
@@ -26,10 +26,8 @@ fn test_scan_command_with_all_required_args() {
         "--neo4j-password",
         "secret",
     ];
-    
-    let parsed = parse_args(&args);
-    assert!(parsed.is_ok());
-    let parsed_args = parsed.unwrap();
+
+    let parsed_args = parse_args(&args);
     assert_eq!(parsed_args[0], "mother");
     assert_eq!(parsed_args[1], "scan");
     assert_eq!(parsed_args[2], "/path/to/repo");
@@ -50,10 +48,8 @@ fn test_scan_command_with_all_args() {
         "--version",
         "v1.0.0",
     ];
-    
-    let parsed = parse_args(&args);
-    assert!(parsed.is_ok());
-    let parsed_args = parsed.unwrap();
+
+    let parsed_args = parse_args(&args);
     assert!(parsed_args.contains(&"scan".to_string()));
     assert!(parsed_args.contains(&"/path/to/repo".to_string()));
     assert!(parsed_args.contains(&"bolt://localhost:7687".to_string()));
@@ -71,10 +67,8 @@ fn test_scan_command_with_custom_neo4j_uri() {
         "--neo4j-password",
         "pass",
     ];
-    
-    let parsed = parse_args(&args);
-    assert!(parsed.is_ok());
-    let parsed_args = parsed.unwrap();
+
+    let parsed_args = parse_args(&args);
     assert!(parsed_args.contains(&"bolt://custom:7687".to_string()));
 }
 
@@ -88,10 +82,8 @@ fn test_query_symbols_command() {
         "--neo4j-password",
         "secret",
     ];
-    
-    let parsed = parse_args(&args);
-    assert!(parsed.is_ok());
-    let parsed_args = parsed.unwrap();
+
+    let parsed_args = parse_args(&args);
     assert!(parsed_args.contains(&"query".to_string()));
     assert!(parsed_args.contains(&"symbols".to_string()));
     assert!(parsed_args.contains(&"pattern".to_string()));
@@ -107,10 +99,8 @@ fn test_query_file_command() {
         "--neo4j-password",
         "secret",
     ];
-    
-    let parsed = parse_args(&args);
-    assert!(parsed.is_ok());
-    let parsed_args = parsed.unwrap();
+
+    let parsed_args = parse_args(&args);
     assert!(parsed_args.contains(&"file".to_string()));
     assert!(parsed_args.contains(&"src/main.rs".to_string()));
 }
@@ -125,10 +115,8 @@ fn test_query_refs_to_command() {
         "--neo4j-password",
         "secret",
     ];
-    
-    let parsed = parse_args(&args);
-    assert!(parsed.is_ok());
-    let parsed_args = parsed.unwrap();
+
+    let parsed_args = parse_args(&args);
     assert!(parsed_args.contains(&"refs-to".to_string()));
     assert!(parsed_args.contains(&"MySymbol".to_string()));
 }
@@ -143,27 +131,17 @@ fn test_query_refs_from_command() {
         "--neo4j-password",
         "secret",
     ];
-    
-    let parsed = parse_args(&args);
-    assert!(parsed.is_ok());
-    let parsed_args = parsed.unwrap();
+
+    let parsed_args = parse_args(&args);
     assert!(parsed_args.contains(&"refs-from".to_string()));
     assert!(parsed_args.contains(&"MyFunction".to_string()));
 }
 
 #[test]
 fn test_query_files_command_without_pattern() {
-    let args = vec![
-        "mother",
-        "query",
-        "files",
-        "--neo4j-password",
-        "secret",
-    ];
-    
-    let parsed = parse_args(&args);
-    assert!(parsed.is_ok());
-    let parsed_args = parsed.unwrap();
+    let args = vec!["mother", "query", "files", "--neo4j-password", "secret"];
+
+    let parsed_args = parse_args(&args);
     assert!(parsed_args.contains(&"files".to_string()));
 }
 
@@ -177,27 +155,17 @@ fn test_query_files_command_with_pattern() {
         "--neo4j-password",
         "secret",
     ];
-    
-    let parsed = parse_args(&args);
-    assert!(parsed.is_ok());
-    let parsed_args = parsed.unwrap();
+
+    let parsed_args = parse_args(&args);
     assert!(parsed_args.contains(&"files".to_string()));
     assert!(parsed_args.contains(&"*.rs".to_string()));
 }
 
 #[test]
 fn test_query_stats_command() {
-    let args = vec![
-        "mother",
-        "query",
-        "stats",
-        "--neo4j-password",
-        "secret",
-    ];
-    
-    let parsed = parse_args(&args);
-    assert!(parsed.is_ok());
-    let parsed_args = parsed.unwrap();
+    let args = vec!["mother", "query", "stats", "--neo4j-password", "secret"];
+
+    let parsed_args = parse_args(&args);
     assert!(parsed_args.contains(&"stats".to_string()));
 }
 
@@ -211,10 +179,8 @@ fn test_query_raw_command() {
         "--neo4j-password",
         "secret",
     ];
-    
-    let parsed = parse_args(&args);
-    assert!(parsed.is_ok());
-    let parsed_args = parsed.unwrap();
+
+    let parsed_args = parse_args(&args);
     assert!(parsed_args.contains(&"raw".to_string()));
     assert!(parsed_args.contains(&"MATCH (n) RETURN n LIMIT 10".to_string()));
 }
@@ -231,10 +197,8 @@ fn test_diff_command_with_all_args() {
         "--neo4j-password",
         "secret",
     ];
-    
-    let parsed = parse_args(&args);
-    assert!(parsed.is_ok());
-    let parsed_args = parsed.unwrap();
+
+    let parsed_args = parse_args(&args);
     assert!(parsed_args.contains(&"diff".to_string()));
     assert!(parsed_args.contains(&"v1.0.0".to_string()));
     assert!(parsed_args.contains(&"v1.1.0".to_string()));
@@ -256,10 +220,8 @@ fn test_diff_command_with_custom_neo4j_settings() {
         "--neo4j-password",
         "secret",
     ];
-    
-    let parsed = parse_args(&args);
-    assert!(parsed.is_ok());
-    let parsed_args = parsed.unwrap();
+
+    let parsed_args = parse_args(&args);
     assert!(parsed_args.contains(&"bolt://custom:9999".to_string()));
     assert!(parsed_args.contains(&"admin".to_string()));
 }
@@ -274,10 +236,8 @@ fn test_verbose_flag_with_scan() {
         "--neo4j-password",
         "secret",
     ];
-    
-    let parsed = parse_args(&args);
-    assert!(parsed.is_ok());
-    let parsed_args = parsed.unwrap();
+
+    let parsed_args = parse_args(&args);
     assert!(parsed_args.contains(&"--verbose".to_string()));
     assert!(parsed_args.contains(&"scan".to_string()));
 }
@@ -292,10 +252,8 @@ fn test_verbose_flag_short_form() {
         "--neo4j-password",
         "secret",
     ];
-    
-    let parsed = parse_args(&args);
-    assert!(parsed.is_ok());
-    let parsed_args = parsed.unwrap();
+
+    let parsed_args = parse_args(&args);
     assert!(parsed_args.contains(&"-v".to_string()));
 }
 
@@ -308,10 +266,8 @@ fn test_scan_with_relative_path() {
         "--neo4j-password",
         "secret",
     ];
-    
-    let parsed = parse_args(&args);
-    assert!(parsed.is_ok());
-    let parsed_args = parsed.unwrap();
+
+    let parsed_args = parse_args(&args);
     assert!(parsed_args.contains(&"./relative/path".to_string()));
 }
 
@@ -324,36 +280,25 @@ fn test_scan_with_absolute_path() {
         "--neo4j-password",
         "secret",
     ];
-    
-    let parsed = parse_args(&args);
-    assert!(parsed.is_ok());
-    let parsed_args = parsed.unwrap();
+
+    let parsed_args = parse_args(&args);
     assert!(parsed_args.contains(&"/absolute/path/to/repo".to_string()));
 }
 
 #[test]
 fn test_empty_args() {
     let args: Vec<&str> = vec![];
-    let parsed = parse_args(&args);
-    assert!(parsed.is_ok());
-    assert_eq!(parsed.unwrap().len(), 0);
+    let parsed_args = parse_args(&args);
+    assert_eq!(parsed_args.len(), 0);
 }
 
 #[test]
 fn test_query_with_default_neo4j_uri() {
-    let args = vec![
-        "mother",
-        "query",
-        "stats",
-        "--neo4j-password",
-        "secret",
-    ];
-    
-    let parsed = parse_args(&args);
-    assert!(parsed.is_ok());
+    let args = vec!["mother", "query", "stats", "--neo4j-password", "secret"];
+
+    let parsed_args = parse_args(&args);
     // Default should be bolt://localhost:7687
     // This is handled by clap, we just verify the command structure
-    let parsed_args = parsed.unwrap();
     assert!(parsed_args.contains(&"stats".to_string()));
 }
 
@@ -368,10 +313,8 @@ fn test_scan_version_tag_format() {
         "--neo4j-password",
         "secret",
     ];
-    
-    let parsed = parse_args(&args);
-    assert!(parsed.is_ok());
-    let parsed_args = parsed.unwrap();
+
+    let parsed_args = parse_args(&args);
     assert!(parsed_args.contains(&"v1.2.3-beta.1".to_string()));
 }
 
@@ -379,7 +322,7 @@ fn test_scan_version_tag_format() {
 fn test_pathbuf_handling() {
     let path = PathBuf::from("/test/path");
     assert_eq!(path.to_str().unwrap(), "/test/path");
-    
+
     let rel_path = PathBuf::from("./relative");
     assert_eq!(rel_path.to_str().unwrap(), "./relative");
 }
@@ -404,7 +347,7 @@ fn test_query_subcommand_names() {
         "stats",
         "raw",
     ];
-    
+
     for subcmd in subcommands {
         assert!(!subcmd.is_empty());
     }
@@ -414,7 +357,7 @@ fn test_query_subcommand_names() {
 fn test_neo4j_default_values() {
     let default_uri = "bolt://localhost:7687";
     let default_user = "neo4j";
-    
+
     assert!(default_uri.starts_with("bolt://"));
     assert_eq!(default_user, "neo4j");
 }
@@ -428,7 +371,7 @@ fn test_multiple_query_commands_structure() {
         ("refs-from", "symbol"),
         ("raw", "query"),
     ];
-    
+
     for (query_type, arg_type) in query_types {
         assert!(!query_type.is_empty());
         assert!(!arg_type.is_empty());
@@ -438,7 +381,7 @@ fn test_multiple_query_commands_structure() {
 #[test]
 fn test_diff_version_format() {
     let versions = vec!["v1.0.0", "v2.0.0", "main", "feature-branch", "abc123"];
-    
+
     for version in versions {
         assert!(!version.is_empty());
     }
@@ -446,17 +389,12 @@ fn test_diff_version_format() {
 
 #[test]
 fn test_scan_with_empty_version() {
-    let args = vec![
-        "mother",
-        "scan",
-        "/repo",
-        "--neo4j-password",
-        "secret",
-    ];
-    
-    let parsed = parse_args(&args);
-    assert!(parsed.is_ok());
+    let args = vec!["mother", "scan", "/repo", "--neo4j-password", "secret"];
+
+    let parsed_args = parse_args(&args);
     // Version is optional, so this should work without --version flag
+    assert!(parsed_args.contains(&"scan".to_string()));
+    assert!(!parsed_args.iter().any(|arg| arg == "--version"));
 }
 
 #[test]
@@ -464,10 +402,8 @@ fn test_neo4j_password_required() {
     // This test validates that neo4j-password is a required parameter
     // In the actual CLI, this would fail parsing if password is missing
     let args = vec!["mother", "scan", "/repo", "--neo4j-password", "secret"];
-    
-    let parsed = parse_args(&args);
-    assert!(parsed.is_ok());
-    let parsed_args = parsed.unwrap();
+
+    let parsed_args = parse_args(&args);
     assert!(parsed_args.contains(&"secret".to_string()));
 }
 
@@ -475,7 +411,7 @@ fn test_neo4j_password_required() {
 fn test_verbose_flag_global() {
     // Verbose flag is global and can be used with any command
     let commands = vec!["scan", "query", "diff"];
-    
+
     for cmd in commands {
         let args = if cmd == "scan" {
             vec!["mother", "-v", cmd, "/repo", "--neo4j-password", "secret"]
@@ -494,9 +430,9 @@ fn test_verbose_flag_global() {
         } else {
             vec!["mother", "-v", cmd, "stats", "--neo4j-password", "secret"]
         };
-        
-        let parsed = parse_args(&args);
-        assert!(parsed.is_ok());
+
+        let parsed_args = parse_args(&args);
+        assert!(parsed_args.contains(&"-v".to_string()));
     }
 }
 
@@ -512,7 +448,7 @@ fn test_args_order_flexibility() {
         "--version",
         "v1",
     ];
-    
+
     let args2 = vec![
         "mother",
         "scan",
@@ -522,16 +458,11 @@ fn test_args_order_flexibility() {
         "--neo4j-password",
         "secret",
     ];
-    
-    let parsed1 = parse_args(&args1);
-    let parsed2 = parse_args(&args2);
-    
-    assert!(parsed1.is_ok());
-    assert!(parsed2.is_ok());
-    
+
+    let p1 = parse_args(&args1);
+    let p2 = parse_args(&args2);
+
     // Both should contain the same elements
-    let p1 = parsed1.unwrap();
-    let p2 = parsed2.unwrap();
     assert!(p1.contains(&"v1".to_string()));
     assert!(p2.contains(&"v1".to_string()));
 }
@@ -544,12 +475,10 @@ fn test_special_characters_in_paths() {
         "/path_with_underscores/repo",
         "/path.with.dots/repo",
     ];
-    
+
     for path in paths {
         let args = vec!["mother", "scan", path, "--neo4j-password", "secret"];
-        let parsed = parse_args(&args);
-        assert!(parsed.is_ok());
-        let parsed_args = parsed.unwrap();
+        let parsed_args = parse_args(&args);
         assert!(parsed_args.contains(&path.to_string()));
     }
 }
@@ -561,12 +490,17 @@ fn test_cypher_query_with_special_characters() {
         "MATCH (n:Symbol {kind: 'function'}) RETURN n.name",
         "MATCH (a)-[r:CALLS]->(b) RETURN a, r, b LIMIT 100",
     ];
-    
+
     for query in queries {
-        let args = vec!["mother", "query", "raw", query, "--neo4j-password", "secret"];
-        let parsed = parse_args(&args);
-        assert!(parsed.is_ok());
-        let parsed_args = parsed.unwrap();
+        let args = vec![
+            "mother",
+            "query",
+            "raw",
+            query,
+            "--neo4j-password",
+            "secret",
+        ];
+        let parsed_args = parse_args(&args);
         assert!(parsed_args.contains(&query.to_string()));
     }
 }
@@ -579,7 +513,7 @@ fn test_neo4j_uri_formats() {
         "bolt://remote-host:7687",
         "bolt://192.168.1.100:7687",
     ];
-    
+
     for uri in uris {
         let args = vec![
             "mother",
@@ -590,9 +524,7 @@ fn test_neo4j_uri_formats() {
             "--neo4j-password",
             "secret",
         ];
-        let parsed = parse_args(&args);
-        assert!(parsed.is_ok());
-        let parsed_args = parsed.unwrap();
+        let parsed_args = parse_args(&args);
         assert!(parsed_args.contains(&uri.to_string()));
     }
 }
@@ -606,7 +538,7 @@ fn test_symbol_pattern_variations() {
         "camelCase",
         "snake_case",
     ];
-    
+
     for pattern in patterns {
         let args = vec![
             "mother",
@@ -616,9 +548,7 @@ fn test_symbol_pattern_variations() {
             "--neo4j-password",
             "secret",
         ];
-        let parsed = parse_args(&args);
-        assert!(parsed.is_ok());
-        let parsed_args = parsed.unwrap();
+        let parsed_args = parse_args(&args);
         assert!(parsed_args.contains(&pattern.to_string()));
     }
 }
@@ -632,12 +562,17 @@ fn test_file_path_patterns() {
         "package.json",
         "README.md",
     ];
-    
+
     for path in paths {
-        let args = vec!["mother", "query", "file", path, "--neo4j-password", "secret"];
-        let parsed = parse_args(&args);
-        assert!(parsed.is_ok());
-        let parsed_args = parsed.unwrap();
+        let args = vec![
+            "mother",
+            "query",
+            "file",
+            path,
+            "--neo4j-password",
+            "secret",
+        ];
+        let parsed_args = parse_args(&args);
         assert!(parsed_args.contains(&path.to_string()));
     }
 }
@@ -652,7 +587,7 @@ fn test_version_tag_variations() {
         "develop",
         "release-2024",
     ];
-    
+
     for version in versions {
         let args = vec![
             "mother",
@@ -663,9 +598,7 @@ fn test_version_tag_variations() {
             "--neo4j-password",
             "secret",
         ];
-        let parsed = parse_args(&args);
-        assert!(parsed.is_ok());
-        let parsed_args = parsed.unwrap();
+        let parsed_args = parse_args(&args);
         assert!(parsed_args.contains(&version.to_string()));
     }
 }
@@ -683,15 +616,16 @@ fn test_diff_same_version() {
         "--neo4j-password",
         "secret",
     ];
-    
-    let parsed = parse_args(&args);
-    assert!(parsed.is_ok());
+
+    let parsed_args = parse_args(&args);
+    assert!(parsed_args.contains(&"v1.0.0".to_string()));
+    // Should work even when comparing same versions
 }
 
 #[test]
 fn test_query_files_with_wildcard() {
     let patterns = vec!["*.rs", "*.py", "*.ts", "src/*", "**/*.md"];
-    
+
     for pattern in patterns {
         let args = vec![
             "mother",
@@ -701,8 +635,8 @@ fn test_query_files_with_wildcard() {
             "--neo4j-password",
             "secret",
         ];
-        let parsed = parse_args(&args);
-        assert!(parsed.is_ok());
+        let parsed_args = parse_args(&args);
+        assert!(parsed_args.contains(&pattern.to_string()));
     }
 }
 
@@ -710,7 +644,7 @@ fn test_query_files_with_wildcard() {
 fn test_command_lowercase_consistency() {
     // All commands should be lowercase for consistency
     let commands = vec!["scan", "query", "diff"];
-    
+
     for cmd in commands {
         assert_eq!(cmd, cmd.to_lowercase());
     }
