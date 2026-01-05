@@ -148,7 +148,7 @@ pub(crate) async fn connect_neo4j(uri: &str, user: &str, password: &str) -> Resu
     Ok(Neo4jClient::connect(&config).await?)
 }
 
-async fn shutdown_lsp(lsp_manager: &mut LspServerManager) {
+pub(crate) async fn shutdown_lsp(lsp_manager: &mut LspServerManager) {
     if let Err(e) = lsp_manager.shutdown_all().await {
         tracing::warn!("Failed to shutdown LSP servers: {}", e);
     }
