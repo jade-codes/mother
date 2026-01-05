@@ -103,10 +103,10 @@ fn test_env_filter_valid_levels() {
 #[test]
 fn test_debug_more_verbose_than_info() {
     // This tests the conceptual understanding that "debug" includes more logs than "info"
-    let levels = vec!["error", "warn", "info", "debug", "trace"];
+    let levels = ["error", "warn", "info", "debug", "trace"];
     let info_index = levels.iter().position(|&x| x == "info").unwrap();
     let debug_index = levels.iter().position(|&x| x == "debug").unwrap();
-    
+
     // Debug should come after info (more verbose)
     assert!(debug_index > info_index);
 }
@@ -158,7 +158,8 @@ fn test_filter_construction_verbosity_matrix() {
         };
         let filter_str = format!("{:?}", filter);
         assert!(
-            filter_str.contains(expected_level) || filter_str.contains(&expected_level.to_lowercase()),
+            filter_str.contains(expected_level)
+                || filter_str.contains(&expected_level.to_lowercase()),
             "Filter {:?} should contain level {}",
             filter,
             expected_level
@@ -291,10 +292,10 @@ fn test_log_levels_are_valid_strings() {
     let debug_str = "debug";
     let info_str = "info";
 
-    assert!(debug_str.len() > 0);
-    assert!(info_str.len() > 0);
-    assert_eq!(debug_str.chars().all(|c| c.is_ascii_lowercase()), true);
-    assert_eq!(info_str.chars().all(|c| c.is_ascii_lowercase()), true);
+    assert!(!debug_str.is_empty());
+    assert!(!info_str.is_empty());
+    assert!(debug_str.chars().all(|c| c.is_ascii_lowercase()));
+    assert!(info_str.chars().all(|c| c.is_ascii_lowercase()));
 }
 
 /// Test that filter levels are not equal
@@ -319,10 +320,10 @@ fn test_env_filter_directive_parsing() {
 #[test]
 fn test_boolean_negation() {
     let verbose = true;
-    assert_eq!(!verbose, false);
+    assert!(verbose); // Double negation would equal original
 
     let not_verbose = false;
-    assert_eq!(!not_verbose, true);
+    assert!(!not_verbose); // Negation of false is true
 }
 
 /// Test filter level consistency
@@ -398,7 +399,7 @@ fn test_all_standard_log_levels() {
         ("warn", "WARN"),
         ("error", "ERROR"),
     ];
-    
+
     for (level, upper) in &levels {
         let filter = EnvFilter::new(level);
         let filter_debug = format!("{:?}", filter);
@@ -426,7 +427,7 @@ fn test_verbose_parameter_is_boolean() {
 fn test_verbose_output_relationship() {
     // When verbose=false, we expect info level (less output)
     // When verbose=true, we expect debug level (more output)
-    
+
     let non_verbose_level = if false { "debug" } else { "info" };
     let verbose_level = if true { "debug" } else { "info" };
 
