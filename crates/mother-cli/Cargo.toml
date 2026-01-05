@@ -28,6 +28,7 @@ tempfile.workspace = true
 chrono.workspace = true
 serial_test.workspace = true
 neo4rs.workspace = true
+git2.workspace = true
 
 # CLI crate: allow print to stdout/stderr, inherit other workspace lints
 [lints.clippy]
