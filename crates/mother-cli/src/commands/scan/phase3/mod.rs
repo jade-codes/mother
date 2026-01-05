@@ -156,6 +156,8 @@ async fn create_reference_edge(
 
 #[cfg(test)]
 mod tests {
+    mod tests_run;
+
     use super::*;
     use mother_core::lsp::LspReference;
     use std::path::PathBuf;
