@@ -237,8 +237,7 @@ fn test_error_path_references_call_fails() {
     // 3. Return (0, 1) immediately
 
     let lsp_client_result: Result<(), String> = Ok(());
-    let references_result: Result<Vec<String>, String> =
-        Err("References call failed".to_string());
+    let references_result: Result<Vec<String>, String> = Err("References call failed".to_string());
 
     // Both conditions lead to error, simplified check
     let final_result = (0, 1);
