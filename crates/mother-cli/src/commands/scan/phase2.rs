@@ -636,4 +636,522 @@ mod tests {
         assert_eq!(result.symbol_count, 0);
         assert_eq!(result.error_count, 3);
     }
+
+    #[test]
+    fn test_collect_symbol_info_boundary_conditions() {
+        // Test with line/column at 0
+        let lsp_symbols = vec![create_lsp_symbol(
+            "edge_fn",
+            LspSymbolKind::Function,
+            0,
+            0,
+            0,
+            0,
+        )];
+
+        let graph_symbols = vec![create_symbol_node(
+            "edge_id",
+            "edge_fn",
+            SymbolKind::Function,
+            0,
+            0,
+        )];
+
+        let mut out = Vec::new();
+        collect_symbol_info(
+            &lsp_symbols,
+            &graph_symbols,
+            "file:///test.rs",
+            Language::Rust,
+            &mut out,
+        );
+
+        assert_eq!(out.len(), 1);
+        assert_eq!(out[0].start_line, 0);
+        assert_eq!(out[0].end_line, 0);
+        assert_eq!(out[0].start_col, 0);
+    }
+
+    #[test]
+    fn test_collect_symbol_info_large_line_numbers() {
+        let lsp_symbols = vec![create_lsp_symbol(
+            "large_fn",
+            LspSymbolKind::Function,
+            999999,
+            1000000,
+            0,
+            50,
+        )];
+
+        let graph_symbols = vec![create_symbol_node(
+            "large_id",
+            "large_fn",
+            SymbolKind::Function,
+            999999,
+            1000000,
+        )];
+
+        let mut out = Vec::new();
+        collect_symbol_info(
+            &lsp_symbols,
+            &graph_symbols,
+            "file:///test.rs",
+            Language::Rust,
+            &mut out,
+        );
+
+        assert_eq!(out.len(), 1);
+        assert_eq!(out[0].start_line, 999999);
+        assert_eq!(out[0].end_line, 1000000);
+    }
+
+    #[test]
+    fn test_collect_symbol_info_deeply_nested_symbols() {
+        // Create a deeply nested structure: module -> struct -> impl -> method
+        let mut level1 = create_lsp_symbol("module", LspSymbolKind::Module, 1, 100, 0, 5);
+        let mut level2 = create_lsp_symbol("MyStruct", LspSymbolKind::Struct, 5, 90, 2, 10);
+        let mut level3 = create_lsp_symbol("impl", LspSymbolKind::Struct, 10, 80, 4, 8);
+        let level4 = create_lsp_symbol("method", LspSymbolKind::Function, 15, 20, 6, 15);
+
+        level3.children = vec![level4];
+        level2.children = vec![level3];
+        level1.children = vec![level2];
+        let lsp_symbols = vec![level1];
+
+        let graph_symbols = vec![
+            create_symbol_node("mod_id", "module", SymbolKind::Module, 1, 100),
+            create_symbol_node("struct_id", "MyStruct", SymbolKind::Struct, 5, 90),
+            create_symbol_node("impl_id", "impl", SymbolKind::Struct, 10, 80),
+            create_symbol_node("method_id", "method", SymbolKind::Function, 15, 20),
+        ];
+
+        let mut out = Vec::new();
+        collect_symbol_info(
+            &lsp_symbols,
+            &graph_symbols,
+            "file:///test.rs",
+            Language::Rust,
+            &mut out,
+        );
+
+        assert_eq!(out.len(), 4);
+        assert_eq!(out[0].id, "mod_id");
+        assert_eq!(out[1].id, "struct_id");
+        assert_eq!(out[2].id, "impl_id");
+        assert_eq!(out[3].id, "method_id");
+    }
+
+    #[test]
+    fn test_collect_symbol_info_multiple_children_per_parent() {
+        let mut parent = create_lsp_symbol("Parent", LspSymbolKind::Struct, 1, 50, 0, 5);
+        parent.children = vec![
+            create_lsp_symbol("child1", LspSymbolKind::Function, 5, 10, 2, 10),
+            create_lsp_symbol("child2", LspSymbolKind::Function, 12, 20, 2, 10),
+            create_lsp_symbol("child3", LspSymbolKind::Function, 22, 30, 2, 10),
+        ];
+        let lsp_symbols = vec![parent];
+
+        let graph_symbols = vec![
+            create_symbol_node("parent_id", "Parent", SymbolKind::Struct, 1, 50),
+            create_symbol_node("child1_id", "child1", SymbolKind::Function, 5, 10),
+            create_symbol_node("child2_id", "child2", SymbolKind::Function, 12, 20),
+            create_symbol_node("child3_id", "child3", SymbolKind::Function, 22, 30),
+        ];
+
+        let mut out = Vec::new();
+        collect_symbol_info(
+            &lsp_symbols,
+            &graph_symbols,
+            "file:///test.rs",
+            Language::Rust,
+            &mut out,
+        );
+
+        assert_eq!(out.len(), 4);
+        assert_eq!(out[1].id, "child1_id");
+        assert_eq!(out[2].id, "child2_id");
+        assert_eq!(out[3].id, "child3_id");
+    }
+
+    #[test]
+    fn test_collect_symbol_info_various_symbol_kinds() {
+        let lsp_symbols = vec![
+            create_lsp_symbol("MyClass", LspSymbolKind::Class, 1, 10, 0, 5),
+            create_lsp_symbol("my_function", LspSymbolKind::Function, 12, 20, 0, 5),
+            create_lsp_symbol("MY_CONST", LspSymbolKind::Constant, 22, 22, 0, 10),
+            create_lsp_symbol("MyEnum", LspSymbolKind::Enum, 24, 30, 0, 5),
+            create_lsp_symbol("my_var", LspSymbolKind::Variable, 32, 32, 0, 5),
+        ];
+
+        let graph_symbols = vec![
+            create_symbol_node("class_id", "MyClass", SymbolKind::Class, 1, 10),
+            create_symbol_node("fn_id", "my_function", SymbolKind::Function, 12, 20),
+            create_symbol_node("const_id", "MY_CONST", SymbolKind::Constant, 22, 22),
+            create_symbol_node("enum_id", "MyEnum", SymbolKind::Enum, 24, 30),
+            create_symbol_node("var_id", "my_var", SymbolKind::Variable, 32, 32),
+        ];
+
+        let mut out = Vec::new();
+        collect_symbol_info(
+            &lsp_symbols,
+            &graph_symbols,
+            "file:///test.rs",
+            Language::Rust,
+            &mut out,
+        );
+
+        assert_eq!(out.len(), 5);
+        assert_eq!(out[0].id, "class_id");
+        assert_eq!(out[1].id, "fn_id");
+        assert_eq!(out[2].id, "const_id");
+        assert_eq!(out[3].id, "enum_id");
+        assert_eq!(out[4].id, "var_id");
+    }
+
+    #[test]
+    fn test_collect_symbol_info_with_large_column_numbers() {
+        let lsp_symbols = vec![create_lsp_symbol(
+            "wide_line",
+            LspSymbolKind::Function,
+            1,
+            1,
+            5000,
+            5050,
+        )];
+
+        let graph_symbols = vec![create_symbol_node(
+            "wide_id",
+            "wide_line",
+            SymbolKind::Function,
+            1,
+            1,
+        )];
+
+        let mut out = Vec::new();
+        collect_symbol_info(
+            &lsp_symbols,
+            &graph_symbols,
+            "file:///test.rs",
+            Language::Rust,
+            &mut out,
+        );
+
+        assert_eq!(out.len(), 1);
+        assert_eq!(out[0].start_col, 5000);
+    }
+
+    #[test]
+    fn test_collect_symbol_info_empty_symbol_name() {
+        let lsp_symbols = vec![create_lsp_symbol("", LspSymbolKind::Function, 1, 5, 0, 10)];
+
+        let graph_symbols = vec![create_symbol_node(
+            "empty_id",
+            "",
+            SymbolKind::Function,
+            1,
+            5,
+        )];
+
+        let mut out = Vec::new();
+        collect_symbol_info(
+            &lsp_symbols,
+            &graph_symbols,
+            "file:///test.rs",
+            Language::Rust,
+            &mut out,
+        );
+
+        assert_eq!(out.len(), 1);
+        assert_eq!(out[0].id, "empty_id");
+    }
+
+    #[test]
+    fn test_collect_symbol_info_unicode_file_uri() {
+        let lsp_symbols = vec![create_lsp_symbol(
+            "test",
+            LspSymbolKind::Function,
+            1,
+            5,
+            0,
+            10,
+        )];
+
+        let graph_symbols = vec![create_symbol_node(
+            "test_id",
+            "test",
+            SymbolKind::Function,
+            1,
+            5,
+        )];
+
+        let unicode_uri = "file:///test/日本語/файл.rs";
+        let mut out = Vec::new();
+        collect_symbol_info(
+            &lsp_symbols,
+            &graph_symbols,
+            unicode_uri,
+            Language::Rust,
+            &mut out,
+        );
+
+        assert_eq!(out.len(), 1);
+        assert_eq!(out[0].file_uri, unicode_uri);
+    }
+
+    #[test]
+    fn test_handle_file_result_with_zero_symbols_but_nonzero_count() {
+        let mut result = Phase2Result {
+            symbols: Vec::new(),
+            symbol_count: 0,
+            error_count: 0,
+        };
+
+        let file = create_test_file("/test/file.rs");
+        let outcome = Ok((Vec::new(), 0));
+
+        handle_file_result(outcome, &file, &mut result);
+
+        assert_eq!(result.symbols.len(), 0);
+        assert_eq!(result.symbol_count, 0);
+        assert_eq!(result.error_count, 0);
+    }
+
+    #[test]
+    fn test_handle_file_result_preserves_symbol_order() {
+        let mut result = Phase2Result {
+            symbols: Vec::new(),
+            symbol_count: 0,
+            error_count: 0,
+        };
+
+        let file = create_test_file("/test/file.rs");
+        let symbols = vec![
+            create_test_symbol("first"),
+            create_test_symbol("second"),
+            create_test_symbol("third"),
+        ];
+
+        handle_file_result(Ok((symbols, 3)), &file, &mut result);
+
+        assert_eq!(result.symbols.len(), 3);
+        assert_eq!(result.symbols[0].id, "first");
+        assert_eq!(result.symbols[1].id, "second");
+        assert_eq!(result.symbols[2].id, "third");
+    }
+
+    #[test]
+    fn test_handle_file_result_with_duplicate_symbol_ids() {
+        let mut result = Phase2Result {
+            symbols: Vec::new(),
+            symbol_count: 0,
+            error_count: 0,
+        };
+
+        let file1 = create_test_file("/test/file1.rs");
+        let file2 = create_test_file("/test/file2.rs");
+
+        let symbols1 = vec![create_test_symbol("duplicate_id")];
+        let symbols2 = vec![create_test_symbol("duplicate_id")];
+
+        handle_file_result(Ok((symbols1, 1)), &file1, &mut result);
+        handle_file_result(Ok((symbols2, 1)), &file2, &mut result);
+
+        assert_eq!(result.symbols.len(), 2);
+        assert_eq!(result.symbols[0].id, "duplicate_id");
+        assert_eq!(result.symbols[1].id, "duplicate_id");
+    }
+
+    #[test]
+    fn test_collect_symbol_info_single_line_symbols() {
+        let lsp_symbols = vec![
+            create_lsp_symbol("short1", LspSymbolKind::Variable, 5, 5, 0, 10),
+            create_lsp_symbol("short2", LspSymbolKind::Variable, 7, 7, 0, 10),
+        ];
+
+        let graph_symbols = vec![
+            create_symbol_node("short1_id", "short1", SymbolKind::Variable, 5, 5),
+            create_symbol_node("short2_id", "short2", SymbolKind::Variable, 7, 7),
+        ];
+
+        let mut out = Vec::new();
+        collect_symbol_info(
+            &lsp_symbols,
+            &graph_symbols,
+            "file:///test.rs",
+            Language::Rust,
+            &mut out,
+        );
+
+        assert_eq!(out.len(), 2);
+        assert_eq!(out[0].start_line, 5);
+        assert_eq!(out[0].end_line, 5);
+        assert_eq!(out[1].start_line, 7);
+        assert_eq!(out[1].end_line, 7);
+    }
+
+    #[test]
+    fn test_collect_symbol_info_reverse_order_lines() {
+        // Edge case: symbols where end_line < start_line (malformed input)
+        let lsp_symbols = vec![create_lsp_symbol(
+            "backwards",
+            LspSymbolKind::Function,
+            10,
+            5,
+            0,
+            10,
+        )];
+
+        let graph_symbols = vec![create_symbol_node(
+            "back_id",
+            "backwards",
+            SymbolKind::Function,
+            10,
+            5,
+        )];
+
+        let mut out = Vec::new();
+        collect_symbol_info(
+            &lsp_symbols,
+            &graph_symbols,
+            "file:///test.rs",
+            Language::Rust,
+            &mut out,
+        );
+
+        assert_eq!(out.len(), 1);
+        assert_eq!(out[0].start_line, 10);
+        assert_eq!(out[0].end_line, 5);
+    }
+
+    #[test]
+    fn test_collect_symbol_info_more_graph_symbols_than_lsp() {
+        let lsp_symbols = vec![create_lsp_symbol(
+            "only_one",
+            LspSymbolKind::Function,
+            1,
+            5,
+            0,
+            10,
+        )];
+
+        let graph_symbols = vec![
+            create_symbol_node("id1", "only_one", SymbolKind::Function, 1, 5),
+            create_symbol_node("id2", "extra", SymbolKind::Function, 7, 10),
+        ];
+
+        let mut out = Vec::new();
+        collect_symbol_info(
+            &lsp_symbols,
+            &graph_symbols,
+            "file:///test.rs",
+            Language::Rust,
+            &mut out,
+        );
+
+        // Should only process as many as lsp_symbols (zips stop at shorter)
+        assert_eq!(out.len(), 1);
+        assert_eq!(out[0].id, "id1");
+    }
+
+    #[test]
+    fn test_phase2_result_with_nonzero_initial_values() {
+        let result = Phase2Result {
+            symbols: vec![create_test_symbol("existing")],
+            symbol_count: 100,
+            error_count: 5,
+        };
+
+        assert_eq!(result.symbols.len(), 1);
+        assert_eq!(result.symbol_count, 100);
+        assert_eq!(result.error_count, 5);
+    }
+
+    #[test]
+    fn test_collect_symbol_info_all_languages() {
+        for test_lang in [
+            Language::Rust,
+            Language::Python,
+            Language::TypeScript,
+            Language::JavaScript,
+            Language::Go,
+        ] {
+            let lsp_symbols = vec![create_lsp_symbol(
+                "test",
+                LspSymbolKind::Function,
+                1,
+                5,
+                0,
+                10,
+            )];
+
+            let graph_symbols = vec![create_symbol_node(
+                "test_id",
+                "test",
+                SymbolKind::Function,
+                1,
+                5,
+            )];
+
+            let mut out = Vec::new();
+            collect_symbol_info(
+                &lsp_symbols,
+                &graph_symbols,
+                "file:///test",
+                test_lang,
+                &mut out,
+            );
+
+            assert_eq!(out.len(), 1);
+            assert_eq!(out[0].language, test_lang);
+        }
+    }
+
+    #[test]
+    fn test_collect_symbol_info_complex_nested_with_multiple_branches() {
+        // Create a tree structure with multiple branches at each level
+        let mut root = create_lsp_symbol("root", LspSymbolKind::Module, 1, 100, 0, 5);
+
+        let mut branch1 = create_lsp_symbol("branch1", LspSymbolKind::Struct, 5, 40, 2, 10);
+        branch1.children = vec![
+            create_lsp_symbol("leaf1", LspSymbolKind::Function, 10, 20, 4, 10),
+            create_lsp_symbol("leaf2", LspSymbolKind::Function, 25, 35, 4, 10),
+        ];
+
+        let mut branch2 = create_lsp_symbol("branch2", LspSymbolKind::Struct, 45, 90, 2, 10);
+        branch2.children = vec![
+            create_lsp_symbol("leaf3", LspSymbolKind::Function, 50, 60, 4, 10),
+            create_lsp_symbol("leaf4", LspSymbolKind::Function, 65, 85, 4, 10),
+        ];
+
+        root.children = vec![branch1, branch2];
+        let lsp_symbols = vec![root];
+
+        let graph_symbols = vec![
+            create_symbol_node("root_id", "root", SymbolKind::Module, 1, 100),
+            create_symbol_node("b1_id", "branch1", SymbolKind::Struct, 5, 40),
+            create_symbol_node("l1_id", "leaf1", SymbolKind::Function, 10, 20),
+            create_symbol_node("l2_id", "leaf2", SymbolKind::Function, 25, 35),
+            create_symbol_node("b2_id", "branch2", SymbolKind::Struct, 45, 90),
+            create_symbol_node("l3_id", "leaf3", SymbolKind::Function, 50, 60),
+            create_symbol_node("l4_id", "leaf4", SymbolKind::Function, 65, 85),
+        ];
+
+        let mut out = Vec::new();
+        collect_symbol_info(
+            &lsp_symbols,
+            &graph_symbols,
+            "file:///complex.rs",
+            Language::Rust,
+            &mut out,
+        );
+
+        assert_eq!(out.len(), 7);
+        assert_eq!(out[0].id, "root_id");
+        assert_eq!(out[1].id, "b1_id");
+        assert_eq!(out[2].id, "l1_id");
+        assert_eq!(out[3].id, "l2_id");
+        assert_eq!(out[4].id, "b2_id");
+        assert_eq!(out[5].id, "l3_id");
+        assert_eq!(out[6].id, "l4_id");
+    }
 }
