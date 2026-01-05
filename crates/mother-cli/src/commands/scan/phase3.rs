@@ -439,6 +439,314 @@ mod tests {
         assert!(result.contains_key("/absolute/path/main.rs"));
     }
 
+    #[test]
+    fn test_build_symbol_lookup_table_duplicate_ids_same_file() {
+        use mother_core::scanner::Language;
+
+        // Multiple symbols with same ID in the same file (e.g., overloaded functions)
+        let symbols = vec![
+            SymbolInfo {
+                id: "func".to_string(),
+                file_uri: "file:///src/main.rs".to_string(),
+                start_line: 1,
+                end_line: 10,
+                start_col: 0,
+                language: Language::Rust,
+            },
+            SymbolInfo {
+                id: "func".to_string(),
+                file_uri: "file:///src/main.rs".to_string(),
+                start_line: 20,
+                end_line: 30,
+                start_col: 0,
+                language: Language::Rust,
+            },
+        ];
+
+        let result = build_symbol_lookup_table(&symbols);
+        assert_eq!(result.len(), 1);
+        let file_symbols = &result["/src/main.rs"];
+        assert_eq!(file_symbols.len(), 2, "Both symbols should be stored");
+        assert_eq!(file_symbols[0].0, "func");
+        assert_eq!(file_symbols[1].0, "func");
+    }
+
+    #[test]
+    fn test_build_symbol_lookup_table_same_id_different_files() {
+        use mother_core::scanner::Language;
+
+        // Symbols with same ID in different files
+        let symbols = vec![
+            SymbolInfo {
+                id: "main".to_string(),
+                file_uri: "file:///src/main.rs".to_string(),
+                start_line: 1,
+                end_line: 10,
+                start_col: 0,
+                language: Language::Rust,
+            },
+            SymbolInfo {
+                id: "main".to_string(),
+                file_uri: "file:///src/lib.rs".to_string(),
+                start_line: 5,
+                end_line: 15,
+                start_col: 0,
+                language: Language::Rust,
+            },
+        ];
+
+        let result = build_symbol_lookup_table(&symbols);
+        assert_eq!(result.len(), 2, "Should have two files");
+        assert!(result.contains_key("/src/main.rs"));
+        assert!(result.contains_key("/src/lib.rs"));
+        assert_eq!(result["/src/main.rs"][0].0, "main");
+        assert_eq!(result["/src/lib.rs"][0].0, "main");
+    }
+
+    #[test]
+    fn test_build_symbol_lookup_table_special_chars_in_path() {
+        use mother_core::scanner::Language;
+
+        // File paths with spaces and special characters
+        let symbols = vec![
+            SymbolInfo {
+                id: "sym1".to_string(),
+                file_uri: "file:///path/with spaces/file.rs".to_string(),
+                start_line: 1,
+                end_line: 10,
+                start_col: 0,
+                language: Language::Rust,
+            },
+            SymbolInfo {
+                id: "sym2".to_string(),
+                file_uri: "file:///path/with-dashes/file.rs".to_string(),
+                start_line: 1,
+                end_line: 10,
+                start_col: 0,
+                language: Language::Rust,
+            },
+            SymbolInfo {
+                id: "sym3".to_string(),
+                file_uri: "file:///path/with_underscores/file.rs".to_string(),
+                start_line: 1,
+                end_line: 10,
+                start_col: 0,
+                language: Language::Rust,
+            },
+        ];
+
+        let result = build_symbol_lookup_table(&symbols);
+        assert_eq!(result.len(), 3);
+        assert!(result.contains_key("/path/with spaces/file.rs"));
+        assert!(result.contains_key("/path/with-dashes/file.rs"));
+        assert!(result.contains_key("/path/with_underscores/file.rs"));
+    }
+
+    #[test]
+    fn test_build_symbol_lookup_table_windows_style_path() {
+        use mother_core::scanner::Language;
+
+        // Windows-style paths with drive letters
+        let symbols = vec![SymbolInfo {
+            id: "sym1".to_string(),
+            file_uri: "file:///C:/Users/project/src/main.rs".to_string(),
+            start_line: 1,
+            end_line: 10,
+            start_col: 0,
+            language: Language::Rust,
+        }];
+
+        let result = build_symbol_lookup_table(&symbols);
+        assert_eq!(result.len(), 1);
+        assert!(result.contains_key("/C:/Users/project/src/main.rs"));
+    }
+
+    #[test]
+    fn test_build_symbol_lookup_table_preserves_order() {
+        use mother_core::scanner::Language;
+
+        // Verify that symbols for the same file are stored in order
+        let symbols = vec![
+            SymbolInfo {
+                id: "first".to_string(),
+                file_uri: "file:///src/main.rs".to_string(),
+                start_line: 1,
+                end_line: 10,
+                start_col: 0,
+                language: Language::Rust,
+            },
+            SymbolInfo {
+                id: "second".to_string(),
+                file_uri: "file:///src/main.rs".to_string(),
+                start_line: 20,
+                end_line: 30,
+                start_col: 0,
+                language: Language::Rust,
+            },
+            SymbolInfo {
+                id: "third".to_string(),
+                file_uri: "file:///src/main.rs".to_string(),
+                start_line: 40,
+                end_line: 50,
+                start_col: 0,
+                language: Language::Rust,
+            },
+        ];
+
+        let result = build_symbol_lookup_table(&symbols);
+        let file_symbols = &result["/src/main.rs"];
+        assert_eq!(file_symbols.len(), 3);
+        assert_eq!(file_symbols[0].0, "first");
+        assert_eq!(file_symbols[1].0, "second");
+        assert_eq!(file_symbols[2].0, "third");
+    }
+
+    #[test]
+    fn test_build_symbol_lookup_table_stores_correct_line_numbers() {
+        use mother_core::scanner::Language;
+
+        // Verify that start_line and end_line are correctly stored
+        let symbols = vec![SymbolInfo {
+            id: "sym1".to_string(),
+            file_uri: "file:///src/main.rs".to_string(),
+            start_line: 42,
+            end_line: 100,
+            start_col: 5,
+            language: Language::Rust,
+        }];
+
+        let result = build_symbol_lookup_table(&symbols);
+        let file_symbols = &result["/src/main.rs"];
+        assert_eq!(file_symbols[0].1, 42, "start_line should be 42");
+        assert_eq!(file_symbols[0].2, 100, "end_line should be 100");
+    }
+
+    #[test]
+    fn test_build_symbol_lookup_table_large_line_numbers() {
+        use mother_core::scanner::Language;
+
+        // Test with very large line numbers
+        let symbols = vec![SymbolInfo {
+            id: "sym1".to_string(),
+            file_uri: "file:///src/large.rs".to_string(),
+            start_line: 999999,
+            end_line: 1000000,
+            start_col: 0,
+            language: Language::Rust,
+        }];
+
+        let result = build_symbol_lookup_table(&symbols);
+        let file_symbols = &result["/src/large.rs"];
+        assert_eq!(file_symbols[0].1, 999999);
+        assert_eq!(file_symbols[0].2, 1000000);
+    }
+
+    #[test]
+    fn test_build_symbol_lookup_table_single_line_symbol() {
+        use mother_core::scanner::Language;
+
+        // Symbol that starts and ends on the same line
+        let symbols = vec![SymbolInfo {
+            id: "single_line".to_string(),
+            file_uri: "file:///src/main.rs".to_string(),
+            start_line: 42,
+            end_line: 42,
+            start_col: 10,
+            language: Language::Rust,
+        }];
+
+        let result = build_symbol_lookup_table(&symbols);
+        let file_symbols = &result["/src/main.rs"];
+        assert_eq!(file_symbols[0].1, 42);
+        assert_eq!(file_symbols[0].2, 42);
+    }
+
+    #[test]
+    fn test_build_symbol_lookup_table_multiple_languages() {
+        use mother_core::scanner::Language;
+
+        // Symbols from different languages in the same file path
+        // (shouldn't happen in practice but tests the function logic)
+        let symbols = vec![
+            SymbolInfo {
+                id: "rust_func".to_string(),
+                file_uri: "file:///src/code.rs".to_string(),
+                start_line: 1,
+                end_line: 10,
+                start_col: 0,
+                language: Language::Rust,
+            },
+            SymbolInfo {
+                id: "another_symbol".to_string(),
+                file_uri: "file:///src/code.rs".to_string(),
+                start_line: 20,
+                end_line: 30,
+                start_col: 0,
+                language: Language::TypeScript, // Different language
+            },
+        ];
+
+        let result = build_symbol_lookup_table(&symbols);
+        assert_eq!(
+            result.len(),
+            1,
+            "Should group by file path regardless of language"
+        );
+        let file_symbols = &result["/src/code.rs"];
+        assert_eq!(file_symbols.len(), 2);
+    }
+
+    #[test]
+    fn test_build_symbol_lookup_table_long_symbol_ids() {
+        use mother_core::scanner::Language;
+
+        // Test with very long symbol IDs (fully qualified names)
+        let long_id =
+            "very::long::nested::module::path::to::function::with::many::parts".to_string();
+        let symbols = vec![SymbolInfo {
+            id: long_id.clone(),
+            file_uri: "file:///src/lib.rs".to_string(),
+            start_line: 1,
+            end_line: 10,
+            start_col: 0,
+            language: Language::Rust,
+        }];
+
+        let result = build_symbol_lookup_table(&symbols);
+        let file_symbols = &result["/src/lib.rs"];
+        assert_eq!(file_symbols[0].0, long_id);
+    }
+
+    #[test]
+    fn test_build_symbol_lookup_table_mixed_prefix_styles() {
+        use mother_core::scanner::Language;
+
+        // Mix of URIs with and without file:// prefix
+        let symbols = vec![
+            SymbolInfo {
+                id: "sym1".to_string(),
+                file_uri: "file:///src/with_prefix.rs".to_string(),
+                start_line: 1,
+                end_line: 10,
+                start_col: 0,
+                language: Language::Rust,
+            },
+            SymbolInfo {
+                id: "sym2".to_string(),
+                file_uri: "/src/without_prefix.rs".to_string(),
+                start_line: 1,
+                end_line: 10,
+                start_col: 0,
+                language: Language::Rust,
+            },
+        ];
+
+        let result = build_symbol_lookup_table(&symbols);
+        assert_eq!(result.len(), 2);
+        assert!(result.contains_key("/src/with_prefix.rs"));
+        assert!(result.contains_key("/src/without_prefix.rs"));
+    }
+
     /// Tests for Edge creation logic used in create_reference_edge
     mod edge_creation_tests {
         use super::*;
