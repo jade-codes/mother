@@ -768,7 +768,7 @@ mod tests {
         /// Test the error handling contract: LSP client failures return (0, 1)
         #[test]
         fn test_lsp_client_error_contract() {
-            // When lsp_manager.get_client() fails (line 59-62 in process_symbol_references)
+            // When lsp_manager.get_client() fails in process_symbol_references
             // The function should return (0, 1) indicating 0 references and 1 error
             let expected_error_result = (0_usize, 1_usize);
 
@@ -782,7 +782,7 @@ mod tests {
         /// Test the error handling contract: LSP references call failures return (0, 1)
         #[test]
         fn test_lsp_references_error_contract() {
-            // When lsp_client.references() fails (line 64-75 in process_symbol_references)
+            // When lsp_client.references() fails in process_symbol_references
             // The function should return (0, 1) indicating 0 references and 1 error
             let expected_error_result = (0_usize, 1_usize);
 
@@ -799,7 +799,7 @@ mod tests {
         /// Test the success case contract
         #[test]
         fn test_success_case_contract() {
-            // On success (line 77-80), process_symbol_references returns:
+            // On success, process_symbol_references returns:
             // (create_reference_edges result, 0)
             // The error count is always 0 in the success path
 
@@ -811,16 +811,16 @@ mod tests {
                 (100, 0), // Many references found
             ];
 
-            for (ref_count, error_count) in success_cases {
+            for (_ref_count, error_count) in success_cases {
                 assert_eq!(error_count, 0, "Error count must be 0 in success case");
-                assert!(ref_count >= 0, "Reference count must be non-negative");
+                // ref_count is usize, always non-negative by type
             }
         }
 
         /// Test that process_symbol_references integrates with create_reference_edges
         #[test]
         fn test_integration_with_create_reference_edges() {
-            // process_symbol_references calls create_reference_edges (line 78)
+            // process_symbol_references calls create_reference_edges
             // The result of create_reference_edges becomes the reference_count
 
             // Simulate create_reference_edges returning different counts
@@ -1007,13 +1007,6 @@ mod tests {
                 let success_result = (count, 0);
                 assert_eq!(success_result.0, count);
                 assert_eq!(success_result.1, 0);
-
-                // Verify the result tuple is valid
-                assert!(
-                    success_result.0 >= 0,
-                    "Reference count must be non-negative"
-                );
-                assert_eq!(success_result.1, 0, "Success case must have 0 errors");
             }
         }
 
@@ -1216,7 +1209,7 @@ mod tests {
         #[test]
         fn test_one_call_per_symbol() {
             // In the run function, process_symbol_references is called once for each
-            // symbol in the symbols slice (line 34-39)
+            // symbol in the symbols slice
 
             let symbol_count = 5;
             let expected_calls = symbol_count;
@@ -1231,7 +1224,7 @@ mod tests {
         #[test]
         fn test_count_accumulation_logic() {
             // The run function accumulates reference_count and error_count
-            // from each call to process_symbol_references (lines 36-38)
+            // from each call to process_symbol_references
 
             let results = [
                 (5, 0),  // Symbol 1: 5 refs, no error
