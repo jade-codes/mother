@@ -733,4 +733,425 @@ mod tests {
             assert_ne!(edge_kind, EdgeKind::Imports);
         }
     }
+
+    /// Comprehensive tests for create_reference_edges workflow and logic
+    mod create_reference_edges_workflow_tests {
+        use super::*;
+
+        #[test]
+        fn test_empty_references_list_returns_zero() {
+            // Test that empty references list results in count of 0
+            let refs: Vec<LspReference> = vec![];
+            let symbols = make_symbols_map(vec![("/src/main.rs", vec![("target_sym", 1, 10)])]);
+
+            // Simulate the logic of create_reference_edges with empty refs
+            let mut count = 0;
+            for reference in &refs {
+                if let Some(from_id) = find_containing_symbol(reference, &symbols) {
+                    if from_id != "target_sym" {
+                        count += 1;
+                    }
+                }
+            }
+
+            assert_eq!(count, 0, "Empty references should result in 0 count");
+        }
+
+        #[test]
+        fn test_all_references_without_containing_symbols() {
+            // Test references that don't fall within any symbol
+            let refs = vec![
+                make_reference("/src/main.rs", 100),
+                make_reference("/src/main.rs", 200),
+                make_reference("/src/main.rs", 300),
+            ];
+            let symbols = make_symbols_map(vec![("/src/main.rs", vec![("func", 1, 10)])]);
+
+            let mut count = 0;
+            for reference in &refs {
+                if let Some(from_id) = find_containing_symbol(reference, &symbols) {
+                    if from_id != "target_sym" {
+                        count += 1;
+                    }
+                }
+            }
+
+            assert_eq!(
+                count, 0,
+                "References outside all symbols should result in 0 count"
+            );
+        }
+
+        #[test]
+        fn test_all_references_are_self_references() {
+            // Test that self-references are correctly filtered
+            let refs = vec![
+                make_reference("/src/main.rs", 5),
+                make_reference("/src/main.rs", 7),
+                make_reference("/src/main.rs", 9),
+            ];
+            let symbols = make_symbols_map(vec![("/src/main.rs", vec![("target_sym", 1, 10)])]);
+            let target_id = "target_sym";
+
+            let mut count = 0;
+            for reference in &refs {
+                if let Some(from_id) = find_containing_symbol(reference, &symbols) {
+                    if from_id != target_id {
+                        count += 1;
+                    }
+                }
+            }
+
+            assert_eq!(count, 0, "All self-references should be filtered out");
+        }
+
+        #[test]
+        fn test_mixed_references_some_valid_some_self() {
+            // Test mix of valid references and self-references
+            let refs = vec![
+                make_reference("/src/main.rs", 5),  // In caller_func
+                make_reference("/src/main.rs", 15), // In target_func (self)
+                make_reference("/src/main.rs", 25), // In another_func
+            ];
+            let symbols = make_symbols_map(vec![(
+                "/src/main.rs",
+                vec![
+                    ("caller_func", 1, 10),
+                    ("target_func", 12, 18),
+                    ("another_func", 20, 30),
+                ],
+            )]);
+            let target_id = "target_func";
+
+            let mut count = 0;
+            for reference in &refs {
+                if let Some(from_id) = find_containing_symbol(reference, &symbols) {
+                    if from_id != target_id {
+                        count += 1;
+                    }
+                }
+            }
+
+            assert_eq!(count, 2, "Should count 2 valid references (excluding self)");
+        }
+
+        #[test]
+        fn test_mixed_references_some_outside_symbols() {
+            // Test mix of references inside and outside symbols
+            let refs = vec![
+                make_reference("/src/main.rs", 5),   // In func_a
+                make_reference("/src/main.rs", 100), // Outside any symbol
+                make_reference("/src/main.rs", 25),  // In func_b
+            ];
+            let symbols = make_symbols_map(vec![(
+                "/src/main.rs",
+                vec![("func_a", 1, 10), ("func_b", 20, 30)],
+            )]);
+            let target_id = "target_func";
+
+            let mut count = 0;
+            for reference in &refs {
+                if let Some(from_id) = find_containing_symbol(reference, &symbols) {
+                    if from_id != target_id {
+                        count += 1;
+                    }
+                }
+            }
+
+            assert_eq!(
+                count, 2,
+                "Should count only references within symbols (2 out of 3)"
+            );
+        }
+
+        #[test]
+        fn test_references_across_multiple_files() {
+            // Test references from different files
+            let refs = vec![
+                make_reference("/src/main.rs", 5),
+                make_reference("/src/utils.rs", 10),
+                make_reference("/src/lib.rs", 15),
+            ];
+            let symbols = make_symbols_map(vec![
+                ("/src/main.rs", vec![("main_func", 1, 10)]),
+                ("/src/utils.rs", vec![("util_func", 5, 15)]),
+                ("/src/lib.rs", vec![("lib_func", 10, 20)]),
+            ]);
+            let target_id = "target_func";
+
+            let mut count = 0;
+            for reference in &refs {
+                if let Some(from_id) = find_containing_symbol(reference, &symbols) {
+                    if from_id != target_id {
+                        count += 1;
+                    }
+                }
+            }
+
+            assert_eq!(count, 3, "Should count all references from different files");
+        }
+
+        #[test]
+        fn test_multiple_references_from_same_function() {
+            // Test multiple references from the same calling function
+            let refs = vec![
+                make_reference("/src/main.rs", 5),
+                make_reference("/src/main.rs", 7),
+                make_reference("/src/main.rs", 9),
+            ];
+            let symbols = make_symbols_map(vec![(
+                "/src/main.rs",
+                vec![("caller", 1, 10), ("target", 20, 30)],
+            )]);
+            let target_id = "target";
+
+            let mut count = 0;
+            for reference in &refs {
+                if let Some(from_id) = find_containing_symbol(reference, &symbols) {
+                    if from_id != target_id {
+                        count += 1;
+                    }
+                }
+            }
+
+            assert_eq!(
+                count, 3,
+                "Should count each reference even from same function"
+            );
+        }
+
+        #[test]
+        fn test_references_in_nested_symbols() {
+            // Test references when symbols are nested (inner should be selected)
+            let refs = [
+                make_reference("/src/main.rs", 10), // In inner_block
+                make_reference("/src/main.rs", 5),  // In outer_func only
+            ];
+            let symbols = make_symbols_map(vec![(
+                "/src/main.rs",
+                vec![("outer_func", 1, 20), ("inner_block", 8, 12)],
+            )]);
+            let target_id = "some_target";
+
+            let mut count = 0;
+            let results: Vec<_> = refs
+                .iter()
+                .filter_map(|r| find_containing_symbol(r, &symbols))
+                .collect();
+
+            for from_id in results {
+                if from_id != target_id {
+                    count += 1;
+                }
+            }
+
+            assert_eq!(count, 2, "Should process both references");
+            // Reference at line 10 should be in inner_block, at line 5 in outer_func
+        }
+
+        #[test]
+        fn test_references_with_different_line_numbers() {
+            // Test that line numbers are correctly used for symbol matching
+            let test_cases = vec![
+                (5, Some("func1")),  // Line 5 in func1 (1-10)
+                (15, Some("func2")), // Line 15 in func2 (11-20)
+                (25, Some("func3")), // Line 25 in func3 (21-30)
+                (35, None),          // Line 35 not in any function
+            ];
+
+            let symbols = make_symbols_map(vec![(
+                "/src/main.rs",
+                vec![("func1", 1, 10), ("func2", 11, 20), ("func3", 21, 30)],
+            )]);
+
+            for (line, expected) in test_cases {
+                let reference = make_reference("/src/main.rs", line);
+                let result = find_containing_symbol(&reference, &symbols);
+                assert_eq!(
+                    result,
+                    expected.map(String::from),
+                    "Line {} should be in {:?}",
+                    line,
+                    expected
+                );
+            }
+        }
+
+        #[test]
+        fn test_reference_file_path_matching() {
+            // Test that file paths must match exactly for symbol lookup
+            let reference = make_reference("/src/main.rs", 5);
+            let symbols = make_symbols_map(vec![
+                ("/src/main.rs", vec![("correct_file", 1, 10)]),
+                ("/src/other.rs", vec![("wrong_file", 1, 10)]),
+            ]);
+
+            let result = find_containing_symbol(&reference, &symbols);
+            assert_eq!(
+                result,
+                Some("correct_file".to_string()),
+                "Should match symbol from correct file"
+            );
+        }
+
+        #[test]
+        fn test_counting_accuracy_with_large_reference_list() {
+            // Test counting accuracy with many references
+            let mut refs = vec![];
+            for i in 1..=100 {
+                refs.push(make_reference("/src/main.rs", i));
+            }
+
+            // Create symbols: func1 (1-30), func2 (31-60), func3 (61-90), gap at 91-100
+            let symbols = make_symbols_map(vec![(
+                "/src/main.rs",
+                vec![("func1", 1, 30), ("func2", 31, 60), ("func3", 61, 90)],
+            )]);
+            let target_id = "target";
+
+            let mut count = 0;
+            for reference in &refs {
+                if let Some(from_id) = find_containing_symbol(reference, &symbols) {
+                    if from_id != target_id {
+                        count += 1;
+                    }
+                }
+            }
+
+            // Lines 1-90 should find containing symbols (90 refs)
+            // Lines 91-100 should not (10 refs)
+            assert_eq!(count, 90, "Should count exactly 90 valid references");
+        }
+
+        #[test]
+        fn test_edge_creation_parameters_correctness() {
+            // Test that edge parameters are correctly extracted from references
+            let reference = make_reference("/src/main.rs", 42);
+            let from_id = "caller";
+            let to_id = "callee";
+
+            // Simulate edge creation
+            let edge = Edge {
+                source_id: from_id.to_string(),
+                target_id: to_id.to_string(),
+                kind: EdgeKind::References,
+                line: Some(reference.line),
+                column: Some(reference.start_col),
+            };
+
+            assert_eq!(edge.source_id, from_id);
+            assert_eq!(edge.target_id, to_id);
+            assert_eq!(edge.kind, EdgeKind::References);
+            assert_eq!(edge.line, Some(42));
+            assert_eq!(edge.column, Some(0));
+        }
+
+        #[test]
+        fn test_workflow_with_complex_scenario() {
+            // Complex scenario: multiple files, nested symbols, self-refs, external refs
+            let refs = vec![
+                make_reference("/src/main.rs", 5),    // In caller1
+                make_reference("/src/main.rs", 15),   // In target (self)
+                make_reference("/src/main.rs", 35),   // In inner (nested in caller2)
+                make_reference("/src/utils.rs", 10),  // In util_caller
+                make_reference("/src/utils.rs", 100), // Outside any symbol
+            ];
+
+            let symbols = make_symbols_map(vec![
+                (
+                    "/src/main.rs",
+                    vec![
+                        ("caller1", 1, 10),
+                        ("target", 12, 18),
+                        ("caller2", 20, 50),
+                        ("inner", 30, 40), // Nested in caller2
+                    ],
+                ),
+                ("/src/utils.rs", vec![("util_caller", 5, 20)]),
+            ]);
+
+            let target_id = "target";
+            let mut count = 0;
+
+            for reference in &refs {
+                if let Some(from_id) = find_containing_symbol(reference, &symbols) {
+                    if from_id != target_id {
+                        count += 1;
+                    }
+                }
+            }
+
+            // Expected valid references:
+            // 1. caller1 (line 5) -> target
+            // 2. target (line 15) -> target (filtered as self-ref)
+            // 3. inner (line 35) -> target (nested symbol correctly selected)
+            // 4. util_caller (line 10) -> target
+            // 5. Outside symbol (line 100) -> not counted
+            // Total: 3 valid edges
+            assert_eq!(count, 3, "Complex scenario should count 3 valid edges");
+        }
+
+        #[test]
+        fn test_boundary_line_numbers() {
+            // Test references at exact start and end boundaries
+            let refs = [
+                make_reference("/src/main.rs", 1),  // Exact start
+                make_reference("/src/main.rs", 10), // Exact end
+                make_reference("/src/main.rs", 0),  // Before start
+                make_reference("/src/main.rs", 11), // After end
+            ];
+            let symbols = make_symbols_map(vec![("/src/main.rs", vec![("func", 1, 10)])]);
+
+            let results: Vec<_> = refs
+                .iter()
+                .filter_map(|r| find_containing_symbol(r, &symbols))
+                .collect();
+
+            assert_eq!(
+                results.len(),
+                2,
+                "Only references at lines 1 and 10 should match"
+            );
+            assert!(results.iter().all(|id| id == "func"));
+        }
+
+        #[test]
+        fn test_single_line_symbols() {
+            // Test symbols that start and end on the same line
+            let refs = [
+                make_reference("/src/main.rs", 5),
+                make_reference("/src/main.rs", 10),
+                make_reference("/src/main.rs", 15),
+            ];
+            let symbols = make_symbols_map(vec![(
+                "/src/main.rs",
+                vec![
+                    ("single_line_1", 5, 5),
+                    ("single_line_2", 10, 10),
+                    ("single_line_3", 15, 15),
+                ],
+            )]);
+
+            let results: Vec<_> = refs
+                .iter()
+                .filter_map(|r| find_containing_symbol(r, &symbols))
+                .collect();
+
+            assert_eq!(
+                results.len(),
+                3,
+                "All references should match their single-line symbols"
+            );
+        }
+
+        #[test]
+        fn test_zero_references_in_map() {
+            // Test behavior when symbols_by_file has entries but empty symbol lists
+            let refs = [make_reference("/src/main.rs", 5)];
+            let symbols = make_symbols_map(vec![("/src/main.rs", vec![])]);
+
+            let result = find_containing_symbol(&refs[0], &symbols);
+            assert_eq!(result, None, "Empty symbol list should result in no match");
+        }
+    }
 }
