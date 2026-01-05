@@ -1268,3 +1268,4 @@ mod tests {
         }
     }
 }
+mod tests;
