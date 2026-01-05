@@ -40,7 +40,6 @@ fn test_scanner_with_language_filter() {
 }
 
 #[test]
-#[allow(clippy::expect_used)]
 fn test_scanner_root_returns_correct_path() {
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
     let scanner = Scanner::new(temp_dir.path());
@@ -49,7 +48,6 @@ fn test_scanner_root_returns_correct_path() {
 }
 
 #[test]
-#[allow(clippy::expect_used)]
 fn test_scanner_root_with_relative_path() {
     let scanner = Scanner::new(".");
 
@@ -57,7 +55,6 @@ fn test_scanner_root_with_relative_path() {
 }
 
 #[test]
-#[allow(clippy::expect_used)]
 fn test_scanner_root_with_absolute_path() {
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
     let abs_path = temp_dir
@@ -70,7 +67,6 @@ fn test_scanner_root_with_absolute_path() {
 }
 
 #[test]
-#[allow(clippy::expect_used)]
 fn test_scanner_root_persists_after_with_languages() {
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
     let scanner =
@@ -80,7 +76,6 @@ fn test_scanner_root_persists_after_with_languages() {
 }
 
 #[test]
-#[allow(clippy::expect_used)]
 fn test_scanner_root_with_string_path() {
     let path_str = "/tmp/test";
     let scanner = Scanner::new(path_str);
@@ -89,7 +84,6 @@ fn test_scanner_root_with_string_path() {
 }
 
 #[test]
-#[allow(clippy::expect_used)]
 fn test_scanner_root_with_path_buf() {
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
     let path_buf = temp_dir.path().to_path_buf();
