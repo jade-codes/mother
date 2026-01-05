@@ -77,7 +77,7 @@ fn test_scanner_root_persists_after_with_languages() {
 
 #[test]
 fn test_scanner_root_with_string_path() {
-    let path_str = "/tmp/test";
+    let path_str = "test_path";
     let scanner = Scanner::new(path_str);
 
     assert_eq!(scanner.root(), std::path::Path::new(path_str));
