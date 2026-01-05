@@ -1,5 +1,8 @@
 //! Tests for the phase1::run function
 
+#![allow(clippy::unwrap_used)]
+#![allow(clippy::expect_used)]
+
 use mother_core::graph::neo4j::{Neo4jClient, Neo4jConfig};
 use mother_core::lsp::LspServerManager;
 use mother_core::scanner::{DiscoveredFile, Language};
@@ -67,13 +70,11 @@ async fn test_run_with_single_new_rust_file() {
     let discovered_file = create_discovered_file(file_path, Language::Rust);
 
     let client = create_test_client().await;
-    
+
     let mut lsp_manager = LspServerManager::new(temp_dir.path());
     let commit_sha = "test_commit_123";
 
     let result = run(&[discovered_file], &client, &mut lsp_manager, commit_sha).await;
-
-    
 
     assert!(result.is_ok());
     let phase1_result = result.unwrap();
@@ -93,13 +94,11 @@ async fn test_run_with_single_new_python_file() {
     let discovered_file = create_discovered_file(file_path, Language::Python);
 
     let client = create_test_client().await;
-    
+
     let mut lsp_manager = LspServerManager::new(temp_dir.path());
     let commit_sha = "test_commit_456";
 
     let result = run(&[discovered_file], &client, &mut lsp_manager, commit_sha).await;
-
-    
 
     assert!(result.is_ok());
     let phase1_result = result.unwrap();
@@ -107,10 +106,7 @@ async fn test_run_with_single_new_python_file() {
     assert_eq!(phase1_result.reused_file_count, 0);
     assert_eq!(phase1_result.error_count, 0);
     assert_eq!(phase1_result.files_to_process.len(), 1);
-    assert_eq!(
-        phase1_result.files_to_process[0].language,
-        Language::Python
-    );
+    assert_eq!(phase1_result.files_to_process[0].language, Language::Python);
 }
 
 #[tokio::test]
@@ -122,20 +118,24 @@ async fn test_run_with_single_reused_file() {
     let discovered_file = create_discovered_file(file_path.clone(), Language::Rust);
 
     let client = create_test_client().await;
-    
+
     let mut lsp_manager = LspServerManager::new(temp_dir.path());
     let commit_sha = "same_commit";
 
     // First run - file should be new
-    let result1 = run(&[discovered_file.clone()], &client, &mut lsp_manager, commit_sha).await;
+    let result1 = run(
+        std::slice::from_ref(&discovered_file),
+        &client,
+        &mut lsp_manager,
+        commit_sha,
+    )
+    .await;
     assert!(result1.is_ok());
     let phase1_result1 = result1.unwrap();
     assert_eq!(phase1_result1.new_file_count, 1);
 
     // Second run - file should be reused (same content and commit)
     let result2 = run(&[discovered_file], &client, &mut lsp_manager, commit_sha).await;
-
-    
 
     assert!(result2.is_ok());
     let phase1_result2 = result2.unwrap();
@@ -165,13 +165,11 @@ async fn test_run_with_multiple_new_files() {
     ];
 
     let client = create_test_client().await;
-    
+
     let mut lsp_manager = LspServerManager::new(temp_dir.path());
     let commit_sha = "multi_commit";
 
     let result = run(&discovered_files, &client, &mut lsp_manager, commit_sha).await;
-
-    
 
     assert!(result.is_ok());
     let phase1_result = result.unwrap();
@@ -197,13 +195,11 @@ async fn test_run_with_multiple_languages() {
     ];
 
     let client = create_test_client().await;
-    
+
     let mut lsp_manager = LspServerManager::new(temp_dir.path());
     let commit_sha = "multi_lang_commit";
 
     let result = run(&discovered_files, &client, &mut lsp_manager, commit_sha).await;
-
-    
 
     assert!(result.is_ok());
     let phase1_result = result.unwrap();
@@ -235,18 +231,22 @@ async fn test_run_with_mixed_new_and_reused_files() {
     let discovered_file2 = create_discovered_file(file2.clone(), Language::Rust);
 
     let client = create_test_client().await;
-    
+
     let mut lsp_manager = LspServerManager::new(temp_dir.path());
     let commit_sha = "mixed_commit";
 
     // First, process file2 so it will be reused later
-    let _ = run(&[discovered_file2.clone()], &client, &mut lsp_manager, commit_sha).await;
+    let _ = run(
+        std::slice::from_ref(&discovered_file2),
+        &client,
+        &mut lsp_manager,
+        commit_sha,
+    )
+    .await;
 
     // Now run with both files - file1 is new, file2 is reused
     let discovered_files = vec![discovered_file1, discovered_file2];
     let result = run(&discovered_files, &client, &mut lsp_manager, commit_sha).await;
-
-    
 
     assert!(result.is_ok());
     let phase1_result = result.unwrap();
@@ -296,13 +296,11 @@ async fn test_run_with_mixed_success_and_errors() {
     ];
 
     let client = create_test_client().await;
-    
+
     let mut lsp_manager = LspServerManager::new(temp_dir.path());
     let commit_sha = "mixed_error_commit";
 
     let result = run(&discovered_files, &client, &mut lsp_manager, commit_sha).await;
-
-    
 
     assert!(result.is_ok());
     let phase1_result = result.unwrap();
@@ -354,12 +352,12 @@ async fn test_run_with_different_commit_sha() {
     let discovered_file = create_discovered_file(file_path.clone(), Language::Rust);
 
     let client = create_test_client().await;
-    
+
     let mut lsp_manager = LspServerManager::new(temp_dir.path());
 
     // First run with commit_sha1
     let result1 = run(
-        &[discovered_file.clone()],
+        std::slice::from_ref(&discovered_file),
         &client,
         &mut lsp_manager,
         "commit_sha_1",
@@ -371,9 +369,13 @@ async fn test_run_with_different_commit_sha() {
 
     // Second run with different commit_sha but same file content
     // The file should be treated as new because commit changed
-    let result2 = run(&[discovered_file], &client, &mut lsp_manager, "commit_sha_2").await;
-
-    
+    let result2 = run(
+        &[discovered_file],
+        &client,
+        &mut lsp_manager,
+        "commit_sha_2",
+    )
+    .await;
 
     assert!(result2.is_ok());
     let phase1_result2 = result2.unwrap();
@@ -391,12 +393,10 @@ async fn test_run_with_empty_commit_sha() {
     let discovered_file = create_discovered_file(file_path, Language::Rust);
 
     let client = create_test_client().await;
-    
+
     let mut lsp_manager = LspServerManager::new(temp_dir.path());
 
     let result = run(&[discovered_file], &client, &mut lsp_manager, "").await;
-
-    
 
     assert!(result.is_ok());
     let phase1_result = result.unwrap();
@@ -413,13 +413,11 @@ async fn test_run_with_long_commit_sha() {
     let discovered_file = create_discovered_file(file_path, Language::Rust);
 
     let client = create_test_client().await;
-    
+
     let mut lsp_manager = LspServerManager::new(temp_dir.path());
     let long_sha = "a".repeat(64); // Typical git SHA length
 
     let result = run(&[discovered_file], &client, &mut lsp_manager, &long_sha).await;
-
-    
 
     assert!(result.is_ok());
     let phase1_result = result.unwrap();
@@ -441,13 +439,11 @@ async fn test_run_with_large_file() {
     let discovered_file = create_discovered_file(file_path, Language::Rust);
 
     let client = create_test_client().await;
-    
+
     let mut lsp_manager = LspServerManager::new(temp_dir.path());
     let commit_sha = "large_file_commit";
 
     let result = run(&[discovered_file], &client, &mut lsp_manager, commit_sha).await;
-
-    
 
     assert!(result.is_ok());
     let phase1_result = result.unwrap();
@@ -464,13 +460,11 @@ async fn test_run_with_empty_file() {
     let discovered_file = create_discovered_file(file_path, Language::Rust);
 
     let client = create_test_client().await;
-    
+
     let mut lsp_manager = LspServerManager::new(temp_dir.path());
     let commit_sha = "empty_file_commit";
 
     let result = run(&[discovered_file], &client, &mut lsp_manager, commit_sha).await;
-
-    
 
     assert!(result.is_ok());
     let phase1_result = result.unwrap();
@@ -487,13 +481,11 @@ async fn test_run_with_special_characters_in_filename() {
     let discovered_file = create_discovered_file(file_path, Language::Rust);
 
     let client = create_test_client().await;
-    
+
     let mut lsp_manager = LspServerManager::new(temp_dir.path());
     let commit_sha = "special_chars_commit";
 
     let result = run(&[discovered_file], &client, &mut lsp_manager, commit_sha).await;
-
-    
 
     assert!(result.is_ok());
     let phase1_result = result.unwrap();
@@ -517,13 +509,11 @@ async fn test_run_processes_files_in_order() {
     ];
 
     let client = create_test_client().await;
-    
+
     let mut lsp_manager = LspServerManager::new(temp_dir.path());
     let commit_sha = "order_commit";
 
     let result = run(&discovered_files, &client, &mut lsp_manager, commit_sha).await;
-
-    
 
     assert!(result.is_ok());
     let phase1_result = result.unwrap();
