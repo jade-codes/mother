@@ -2,3 +2,4 @@
 
 mod tests_model;
 mod tests_neo4j_client;
+mod tests_neo4jconfig;
