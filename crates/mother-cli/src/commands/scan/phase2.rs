@@ -751,7 +751,7 @@ mod tests {
         let positions = mother_core::lsp::collect_symbol_positions(&lsp_symbols);
 
         // For symbol at index 0, column should be 0
-        let col_0 = positions.get(0).map(|p| p.1).unwrap_or(0);
+        let col_0 = positions.first().map(|p| p.1).unwrap_or(0);
         assert_eq!(col_0, 0);
 
         // For symbol at index 1, column should be 12
@@ -762,7 +762,14 @@ mod tests {
     #[test]
     fn test_enrich_symbols_with_hover_missing_position_defaults_to_zero() {
         // Verify that when position is not found, column defaults to 0
-        let lsp_symbols = vec![create_lsp_symbol("fn_a", LspSymbolKind::Function, 1, 5, 7, 10)];
+        let lsp_symbols = vec![create_lsp_symbol(
+            "fn_a",
+            LspSymbolKind::Function,
+            1,
+            5,
+            7,
+            10,
+        )];
 
         let positions = mother_core::lsp::collect_symbol_positions(&lsp_symbols);
 
@@ -776,7 +783,14 @@ mod tests {
         // Test edge case: more symbol nodes than LSP positions
         // This could happen if symbol conversion creates different counts
 
-        let lsp_symbols = vec![create_lsp_symbol("fn_a", LspSymbolKind::Function, 1, 5, 4, 10)];
+        let lsp_symbols = vec![create_lsp_symbol(
+            "fn_a",
+            LspSymbolKind::Function,
+            1,
+            5,
+            4,
+            10,
+        )];
 
         let positions = mother_core::lsp::collect_symbol_positions(&lsp_symbols);
         assert_eq!(positions.len(), 1);
@@ -784,7 +798,7 @@ mod tests {
         // If we had 2 symbol nodes but only 1 position:
         // - Symbol at index 0 would get column from position[0]
         // - Symbol at index 1 would get default column of 0 (unwrap_or(0))
-        let col_exists = positions.get(0).map(|p| p.1).unwrap_or(0);
+        let col_exists = positions.first().map(|p| p.1).unwrap_or(0);
         let col_missing = positions.get(1).map(|p| p.1).unwrap_or(0);
 
         assert_eq!(col_exists, 4);
@@ -841,7 +855,7 @@ mod tests {
             create_lsp_symbol("third", LspSymbolKind::Function, 15, 20, 8, 20),
         ];
 
-        let graph_symbols = vec![
+        let graph_symbols = [
             create_symbol_node("id1", "first", SymbolKind::Function, 1, 5),
             create_symbol_node("id2", "second", SymbolKind::Function, 7, 12),
             create_symbol_node("id3", "third", SymbolKind::Function, 15, 20),
@@ -887,7 +901,7 @@ mod tests {
         // LSP symbol at line 0
         assert_eq!(lsp_symbol.start_line, 0);
 
-        let positions = mother_core::lsp::collect_symbol_positions(&vec![lsp_symbol]);
+        let positions = mother_core::lsp::collect_symbol_positions(&[lsp_symbol]);
         assert_eq!(positions[0].0, 0);
 
         // If SymbolNode has start_line = 1 (1-indexed)
@@ -902,7 +916,7 @@ mod tests {
         let lsp_symbol =
             create_lsp_symbol("test", LspSymbolKind::Function, 999999, 1000010, 50, 100);
 
-        let positions = mother_core::lsp::collect_symbol_positions(&vec![lsp_symbol]);
+        let positions = mother_core::lsp::collect_symbol_positions(&[lsp_symbol]);
         assert_eq!(positions[0].0, 999999);
         assert_eq!(positions[0].1, 50);
 
@@ -951,10 +965,8 @@ mod tests {
         let lsp_sym_col_max =
             create_lsp_symbol("test2", LspSymbolKind::Function, 5, 10, u32::MAX, u32::MAX);
 
-        let positions = mother_core::lsp::collect_symbol_positions(&vec![
-            lsp_sym_col_0,
-            lsp_sym_col_max,
-        ]);
+        let positions =
+            mother_core::lsp::collect_symbol_positions(&[lsp_sym_col_0, lsp_sym_col_max]);
 
         assert_eq!(positions[0].1, 0);
         assert_eq!(positions[1].1, u32::MAX);
