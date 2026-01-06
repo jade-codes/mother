@@ -852,7 +852,7 @@ fn test_log_scan_summary_maximum_success_minimum_errors() {
 #[test]
 fn test_log_scan_summary_unbalanced_counts() {
     // Test various unbalanced count scenarios
-    
+
     // Many files, few symbols
     let phase1 = Phase1Result {
         files_to_process: vec![],
