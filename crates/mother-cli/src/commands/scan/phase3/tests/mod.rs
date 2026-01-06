@@ -6,3 +6,4 @@ mod tests_find_containing_symbol;
 mod tests_process_symbol_references;
 mod tests_reference_edge_logic;
 mod tests_reference_mapping;
+mod tests_run;
