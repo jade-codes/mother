@@ -520,10 +520,11 @@ fn test_log_scan_run_info_with_minimal_scan_run() {
 #[test]
 fn test_log_scan_run_info_with_maximal_scan_run() {
     // Test with all fields populated with substantial data
-    let scan_run = ScanRun::new("/very/long/path/to/repository/".to_string() + &"nested/".repeat(10))
-        .with_commit("a1b2c3d4e5f6789012345678901234567890abcd")
-        .with_branch("feature/very-long-branch-name-with-lots-of-details")
-        .with_version("v1.2.3-beta.1+build.12345");
+    let scan_run =
+        ScanRun::new("/very/long/path/to/repository/".to_string() + &"nested/".repeat(10))
+            .with_commit("a1b2c3d4e5f6789012345678901234567890abcd")
+            .with_branch("feature/very-long-branch-name-with-lots-of-details")
+            .with_version("v1.2.3-beta.1+build.12345");
 
     log_scan_run_info(&scan_run, "a1b2c3d4e5f6789012345678901234567890abcd");
 }
