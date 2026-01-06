@@ -1804,7 +1804,7 @@ mod tests {
     fn test_log_file_symbols_all_count_combinations() {
         // Test various combinations of counts
         let file = create_test_file("/combo.rs");
-        let counts = vec![0, 1, 5, 10, 50, 100];
+        let counts = [0, 1, 5, 10, 50, 100];
 
         for &symbol_count in &counts {
             for &lsp_count in &counts {
