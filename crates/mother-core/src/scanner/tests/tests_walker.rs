@@ -38,3 +38,56 @@ fn test_scanner_with_language_filter() {
     assert_eq!(files.len(), 1);
     assert_eq!(files[0].language, Language::Python);
 }
+
+#[test]
+fn test_scanner_root_returns_correct_path() {
+    let temp_dir = TempDir::new().expect("Failed to create temp dir");
+    let scanner = Scanner::new(temp_dir.path());
+
+    assert_eq!(scanner.root(), temp_dir.path());
+}
+
+#[test]
+fn test_scanner_root_with_relative_path() {
+    let scanner = Scanner::new(".");
+
+    assert_eq!(scanner.root(), std::path::Path::new("."));
+}
+
+#[test]
+fn test_scanner_root_with_absolute_path() {
+    let temp_dir = TempDir::new().expect("Failed to create temp dir");
+    let abs_path = temp_dir
+        .path()
+        .canonicalize()
+        .expect("Failed to canonicalize path");
+    let scanner = Scanner::new(&abs_path);
+
+    assert_eq!(scanner.root(), abs_path.as_path());
+}
+
+#[test]
+fn test_scanner_root_persists_after_with_languages() {
+    let temp_dir = TempDir::new().expect("Failed to create temp dir");
+    let scanner =
+        Scanner::new(temp_dir.path()).with_languages(vec![Language::Rust, Language::Python]);
+
+    assert_eq!(scanner.root(), temp_dir.path());
+}
+
+#[test]
+fn test_scanner_root_with_string_path() {
+    let path_str = "test_path";
+    let scanner = Scanner::new(path_str);
+
+    assert_eq!(scanner.root(), std::path::Path::new(path_str));
+}
+
+#[test]
+fn test_scanner_root_with_path_buf() {
+    let temp_dir = TempDir::new().expect("Failed to create temp dir");
+    let path_buf = temp_dir.path().to_path_buf();
+    let scanner = Scanner::new(path_buf.clone());
+
+    assert_eq!(scanner.root(), path_buf.as_path());
+}
