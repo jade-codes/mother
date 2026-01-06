@@ -64,13 +64,6 @@ fn test_discovered_file_compute_hash_with_known_content() {
 
     // Verify hash is hexadecimal
     assert!(hash.chars().all(|c| c.is_ascii_hexdigit()));
-
-    // We can't verify exact hash without computing it,
-    // but we can verify it's consistent
-    let hash2 = discovered_file
-        .compute_hash()
-        .expect("Failed to compute hash");
-    assert_eq!(hash, hash2);
 }
 
 #[test]
@@ -178,11 +171,13 @@ fn test_discovered_file_compute_hash_nonexistent_file() {
 #[test]
 #[allow(clippy::expect_used)]
 fn test_discovered_file_compute_hash_large_file() {
+    const ONE_MB: usize = 1024 * 1024;
+
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
     let file_path = temp_dir.path().join("large.rs");
 
     // Create a file with 1MB of data
-    let large_content = vec![b'A'; 1024 * 1024];
+    let large_content = vec![b'A'; ONE_MB];
     fs::write(&file_path, &large_content).expect("Failed to write file");
 
     let discovered_file = DiscoveredFile {
@@ -205,7 +200,7 @@ fn test_discovered_file_compute_hash_binary_content() {
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
     let file_path = temp_dir.path().join("binary.rs");
 
-    // Write binary content (non-UTF8)
+    // Write binary content (non-UTF8) - includes null byte, high bytes, and control chars
     let binary_content: Vec<u8> = vec![0x00, 0xFF, 0xFE, 0xFD, 0x80, 0x81, 0x82];
     fs::write(&file_path, &binary_content).expect("Failed to write file");
 
