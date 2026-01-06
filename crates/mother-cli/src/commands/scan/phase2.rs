@@ -1489,4 +1489,327 @@ mod tests {
         assert_eq!(positions[0].1, 0);
         assert_eq!(positions[1].1, u32::MAX);
     }
+
+    // ============================================================================
+    // Tests for log_file_symbols
+    // ============================================================================
+    //
+    // The `log_file_symbols` function logs information about file symbol extraction.
+    // Since it uses `tracing::info!` and is a private function, these tests verify
+    // that the function can be called with various inputs without panicking.
+    // The actual log output is handled by the tracing infrastructure.
+    // ============================================================================
+
+    #[test]
+    fn test_log_file_symbols_normal_case() {
+        // Test with a typical file path and symbol counts
+        let file = create_test_file("/home/user/project/src/main.rs");
+
+        // This should not panic
+        log_file_symbols(&file, 10, 15);
+    }
+
+    #[test]
+    fn test_log_file_symbols_zero_symbols() {
+        // Test with zero symbol counts
+        let file = create_test_file("/path/to/empty.rs");
+
+        log_file_symbols(&file, 0, 0);
+    }
+
+    #[test]
+    fn test_log_file_symbols_large_counts() {
+        // Test with large symbol counts
+        let file = create_test_file("/large/file.rs");
+
+        log_file_symbols(&file, 1000, 2000);
+        log_file_symbols(&file, usize::MAX, usize::MAX);
+    }
+
+    #[test]
+    fn test_log_file_symbols_mismatched_counts() {
+        // Test with different symbol counts (more symbols than LSP symbols)
+        let file = create_test_file("/test.rs");
+
+        log_file_symbols(&file, 100, 50);
+
+        // Test with fewer symbols than LSP symbols
+        log_file_symbols(&file, 20, 100);
+    }
+
+    #[test]
+    fn test_log_file_symbols_single_symbol() {
+        // Test with a single symbol
+        let file = create_test_file("/single.rs");
+
+        log_file_symbols(&file, 1, 1);
+    }
+
+    #[test]
+    fn test_log_file_symbols_different_file_paths() {
+        // Test with various file path formats
+        let test_paths = vec![
+            "/simple.rs",
+            "/path/to/deeply/nested/file.rs",
+            "/with-dashes.rs",
+            "/with_underscores.rs",
+            "/with.dots.rs",
+            "/123numeric.rs",
+            "relative/path.rs",
+            "./current/dir.rs",
+            "../parent/dir.rs",
+        ];
+
+        for path in test_paths {
+            let file = create_test_file(path);
+            log_file_symbols(&file, 5, 10);
+        }
+    }
+
+    #[test]
+    fn test_log_file_symbols_special_characters_in_path() {
+        // Test with special characters in file paths
+        let special_paths = vec![
+            "/path/with spaces/file.rs",
+            "/path/with'quotes.rs",
+            "/path/with\"doublequotes.rs",
+            "/path/with(parens).rs",
+            "/path/with[brackets].rs",
+        ];
+
+        for path in special_paths {
+            let file = create_test_file(path);
+            log_file_symbols(&file, 3, 5);
+        }
+    }
+
+    #[test]
+    fn test_log_file_symbols_unicode_in_path() {
+        // Test with Unicode characters in file paths
+        let unicode_paths = vec![
+            "/path/日本語.rs",
+            "/path/файл.rs",
+            "/path/αρχείο.rs",
+            "/path/文件.rs",
+            "/path/🦀emoji.rs",
+        ];
+
+        for path in unicode_paths {
+            let file = create_test_file(path);
+            log_file_symbols(&file, 7, 12);
+        }
+    }
+
+    #[test]
+    fn test_log_file_symbols_different_file_extensions() {
+        // Test with different file extensions (different languages)
+        let mut file_py = create_test_file("/test.py");
+        file_py.language = Language::Python;
+        log_file_symbols(&file_py, 5, 8);
+
+        let mut file_ts = create_test_file("/test.ts");
+        file_ts.language = Language::TypeScript;
+        log_file_symbols(&file_ts, 15, 20);
+
+        let mut file_js = create_test_file("/test.js");
+        file_js.language = Language::JavaScript;
+        log_file_symbols(&file_js, 10, 15);
+
+        let mut file_go = create_test_file("/test.go");
+        file_go.language = Language::Go;
+        log_file_symbols(&file_go, 8, 12);
+    }
+
+    #[test]
+    fn test_log_file_symbols_no_extension() {
+        // Test with file that has no extension
+        let file = create_test_file("/path/to/Makefile");
+        log_file_symbols(&file, 2, 3);
+    }
+
+    #[test]
+    fn test_log_file_symbols_hidden_file() {
+        // Test with hidden file (starts with dot)
+        let file = create_test_file("/path/to/.gitignore");
+        log_file_symbols(&file, 0, 0);
+    }
+
+    #[test]
+    fn test_log_file_symbols_root_file() {
+        // Test with file at root
+        let file = create_test_file("/main.rs");
+        log_file_symbols(&file, 5, 10);
+    }
+
+    #[test]
+    fn test_log_file_symbols_very_long_filename() {
+        // Test with a very long filename
+        let long_name = "/".to_string() + &"a".repeat(200) + ".rs";
+        let file = create_test_file(&long_name);
+        log_file_symbols(&file, 3, 5);
+    }
+
+    #[test]
+    fn test_log_file_symbols_equal_counts() {
+        // Test when symbol count equals LSP count
+        let file = create_test_file("/equal.rs");
+
+        for count in [0, 1, 5, 10, 100, 1000] {
+            log_file_symbols(&file, count, count);
+        }
+    }
+
+    #[test]
+    fn test_log_file_symbols_only_one_count_zero() {
+        // Test with one count zero and the other non-zero
+        let file = create_test_file("/test.rs");
+
+        log_file_symbols(&file, 0, 10);
+        log_file_symbols(&file, 10, 0);
+    }
+
+    #[test]
+    fn test_log_file_symbols_all_supported_languages() {
+        // Test with all supported languages
+        let languages = [
+            Language::Rust,
+            Language::Python,
+            Language::TypeScript,
+            Language::JavaScript,
+            Language::Go,
+        ];
+
+        for (i, lang) in languages.iter().enumerate() {
+            let mut file = create_test_file(&format!("/test{}.txt", i));
+            file.language = *lang;
+            log_file_symbols(&file, i + 1, i + 2);
+        }
+    }
+
+    #[test]
+    fn test_log_file_symbols_boundary_counts() {
+        // Test with boundary values for counts
+        let file = create_test_file("/boundary.rs");
+
+        // Minimum values
+        log_file_symbols(&file, 0, 0);
+
+        // Small values
+        log_file_symbols(&file, 1, 1);
+
+        // Medium values
+        log_file_symbols(&file, 50, 75);
+
+        // Large values
+        log_file_symbols(&file, 10000, 15000);
+    }
+
+    #[test]
+    fn test_log_file_symbols_multiple_calls() {
+        // Test calling the function multiple times in sequence
+        let file1 = create_test_file("/file1.rs");
+        let file2 = create_test_file("/file2.rs");
+        let file3 = create_test_file("/file3.rs");
+
+        log_file_symbols(&file1, 5, 10);
+        log_file_symbols(&file2, 3, 7);
+        log_file_symbols(&file3, 8, 12);
+
+        // Call again with same file
+        log_file_symbols(&file1, 5, 10);
+    }
+
+    #[test]
+    fn test_log_file_symbols_with_different_content_hashes() {
+        // Test that different content hashes don't affect logging
+        let mut file1 = create_test_file("/test.rs");
+        file1.content_hash = "hash1".to_string();
+        log_file_symbols(&file1, 5, 10);
+
+        let mut file2 = create_test_file("/test.rs");
+        file2.content_hash = "hash2".to_string();
+        log_file_symbols(&file2, 5, 10);
+    }
+
+    #[test]
+    fn test_log_file_symbols_with_different_file_uris() {
+        // Test that different URI formats work
+        let mut file1 = create_test_file("/test.rs");
+        file1.file_uri = "file:///test.rs".to_string();
+        log_file_symbols(&file1, 3, 5);
+
+        let mut file2 = create_test_file("/test.rs");
+        file2.file_uri = "file:///home/user/test.rs".to_string();
+        log_file_symbols(&file2, 3, 5);
+    }
+
+    #[test]
+    fn test_log_file_symbols_directory_path_only() {
+        // Test with just a directory (no filename component)
+        // This tests the unwrap_or_default() behavior
+        let file = create_test_file("/some/directory/");
+        log_file_symbols(&file, 1, 2);
+    }
+
+    #[test]
+    fn test_log_file_symbols_path_with_trailing_slash() {
+        // Test with path that has trailing slash
+        let file = create_test_file("/path/to/file.rs/");
+        log_file_symbols(&file, 2, 3);
+    }
+
+    #[test]
+    fn test_log_file_symbols_consistent_output_same_input() {
+        // Test that calling with same input multiple times is consistent
+        let file = create_test_file("/consistent.rs");
+
+        for _ in 0..5 {
+            log_file_symbols(&file, 10, 15);
+        }
+    }
+
+    #[test]
+    fn test_log_file_symbols_extreme_count_difference() {
+        // Test with extreme differences between symbol and LSP counts
+        let file = create_test_file("/extreme.rs");
+
+        log_file_symbols(&file, 0, 10000);
+        log_file_symbols(&file, 10000, 0);
+        log_file_symbols(&file, 1, 10000);
+        log_file_symbols(&file, 10000, 1);
+    }
+
+    #[test]
+    fn test_log_file_symbols_windows_style_path() {
+        // Test with Windows-style paths (though they may not be valid on Unix)
+        let file = create_test_file("C:\\Users\\test\\file.rs");
+        log_file_symbols(&file, 5, 8);
+    }
+
+    #[test]
+    fn test_log_file_symbols_mixed_separators() {
+        // Test with mixed path separators
+        let file = create_test_file("/path\\to/mixed\\file.rs");
+        log_file_symbols(&file, 3, 5);
+    }
+
+    #[test]
+    fn test_log_file_symbols_double_extension() {
+        // Test with double extension
+        let file = create_test_file("/file.test.rs");
+        log_file_symbols(&file, 4, 6);
+    }
+
+    #[test]
+    fn test_log_file_symbols_all_count_combinations() {
+        // Test various combinations of counts
+        let file = create_test_file("/combo.rs");
+        let counts = [0, 1, 5, 10, 50, 100];
+
+        for &symbol_count in &counts {
+            for &lsp_count in &counts {
+                log_file_symbols(&file, symbol_count, lsp_count);
+            }
+        }
+    }
 }
