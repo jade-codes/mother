@@ -1504,7 +1504,7 @@ mod tests {
     fn test_log_file_symbols_normal_case() {
         // Test with a typical file path and symbol counts
         let file = create_test_file("/home/user/project/src/main.rs");
-        
+
         // This should not panic
         log_file_symbols(&file, 10, 15);
     }
@@ -1513,7 +1513,7 @@ mod tests {
     fn test_log_file_symbols_zero_symbols() {
         // Test with zero symbol counts
         let file = create_test_file("/path/to/empty.rs");
-        
+
         log_file_symbols(&file, 0, 0);
     }
 
@@ -1521,7 +1521,7 @@ mod tests {
     fn test_log_file_symbols_large_counts() {
         // Test with large symbol counts
         let file = create_test_file("/large/file.rs");
-        
+
         log_file_symbols(&file, 1000, 2000);
         log_file_symbols(&file, usize::MAX, usize::MAX);
     }
@@ -1530,9 +1530,9 @@ mod tests {
     fn test_log_file_symbols_mismatched_counts() {
         // Test with different symbol counts (more symbols than LSP symbols)
         let file = create_test_file("/test.rs");
-        
+
         log_file_symbols(&file, 100, 50);
-        
+
         // Test with fewer symbols than LSP symbols
         log_file_symbols(&file, 20, 100);
     }
@@ -1541,7 +1541,7 @@ mod tests {
     fn test_log_file_symbols_single_symbol() {
         // Test with a single symbol
         let file = create_test_file("/single.rs");
-        
+
         log_file_symbols(&file, 1, 1);
     }
 
@@ -1653,7 +1653,7 @@ mod tests {
     fn test_log_file_symbols_equal_counts() {
         // Test when symbol count equals LSP count
         let file = create_test_file("/equal.rs");
-        
+
         for count in [0, 1, 5, 10, 100, 1000] {
             log_file_symbols(&file, count, count);
         }
@@ -1663,7 +1663,7 @@ mod tests {
     fn test_log_file_symbols_only_one_count_zero() {
         // Test with one count zero and the other non-zero
         let file = create_test_file("/test.rs");
-        
+
         log_file_symbols(&file, 0, 10);
         log_file_symbols(&file, 10, 0);
     }
@@ -1671,7 +1671,7 @@ mod tests {
     #[test]
     fn test_log_file_symbols_all_supported_languages() {
         // Test with all supported languages
-        let languages = vec![
+        let languages = [
             Language::Rust,
             Language::Python,
             Language::TypeScript,
@@ -1690,16 +1690,16 @@ mod tests {
     fn test_log_file_symbols_boundary_counts() {
         // Test with boundary values for counts
         let file = create_test_file("/boundary.rs");
-        
+
         // Minimum values
         log_file_symbols(&file, 0, 0);
-        
+
         // Small values
         log_file_symbols(&file, 1, 1);
-        
+
         // Medium values
         log_file_symbols(&file, 50, 75);
-        
+
         // Large values
         log_file_symbols(&file, 10000, 15000);
     }
@@ -1710,11 +1710,11 @@ mod tests {
         let file1 = create_test_file("/file1.rs");
         let file2 = create_test_file("/file2.rs");
         let file3 = create_test_file("/file3.rs");
-        
+
         log_file_symbols(&file1, 5, 10);
         log_file_symbols(&file2, 3, 7);
         log_file_symbols(&file3, 8, 12);
-        
+
         // Call again with same file
         log_file_symbols(&file1, 5, 10);
     }
@@ -1725,7 +1725,7 @@ mod tests {
         let mut file1 = create_test_file("/test.rs");
         file1.content_hash = "hash1".to_string();
         log_file_symbols(&file1, 5, 10);
-        
+
         let mut file2 = create_test_file("/test.rs");
         file2.content_hash = "hash2".to_string();
         log_file_symbols(&file2, 5, 10);
@@ -1737,7 +1737,7 @@ mod tests {
         let mut file1 = create_test_file("/test.rs");
         file1.file_uri = "file:///test.rs".to_string();
         log_file_symbols(&file1, 3, 5);
-        
+
         let mut file2 = create_test_file("/test.rs");
         file2.file_uri = "file:///home/user/test.rs".to_string();
         log_file_symbols(&file2, 3, 5);
@@ -1762,7 +1762,7 @@ mod tests {
     fn test_log_file_symbols_consistent_output_same_input() {
         // Test that calling with same input multiple times is consistent
         let file = create_test_file("/consistent.rs");
-        
+
         for _ in 0..5 {
             log_file_symbols(&file, 10, 15);
         }
@@ -1772,7 +1772,7 @@ mod tests {
     fn test_log_file_symbols_extreme_count_difference() {
         // Test with extreme differences between symbol and LSP counts
         let file = create_test_file("/extreme.rs");
-        
+
         log_file_symbols(&file, 0, 10000);
         log_file_symbols(&file, 10000, 0);
         log_file_symbols(&file, 1, 10000);
@@ -1805,7 +1805,7 @@ mod tests {
         // Test various combinations of counts
         let file = create_test_file("/combo.rs");
         let counts = vec![0, 1, 5, 10, 50, 100];
-        
+
         for &symbol_count in &counts {
             for &lsp_count in &counts {
                 log_file_symbols(&file, symbol_count, lsp_count);
