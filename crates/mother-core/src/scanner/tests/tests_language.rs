@@ -63,7 +63,10 @@ fn test_language_extensions() {
     assert_eq!(Language::Rust.extensions(), &["rs"]);
     assert_eq!(Language::Python.extensions(), &["py"]);
     assert_eq!(Language::TypeScript.extensions(), &["ts", "tsx"]);
-    assert_eq!(Language::JavaScript.extensions(), &["js", "jsx", "mjs", "cjs"]);
+    assert_eq!(
+        Language::JavaScript.extensions(),
+        &["js", "jsx", "mjs", "cjs"]
+    );
     assert_eq!(Language::Go.extensions(), &["go"]);
     assert_eq!(Language::SysML.extensions(), &["sysml"]);
     assert_eq!(Language::KerML.extensions(), &["kerml"]);
