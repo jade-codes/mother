@@ -16,6 +16,13 @@ use tempfile::TempDir;
 use super::super::{create_scan_run, log_scan_run_info};
 
 // ============================================================================
+// Test Constants
+// ============================================================================
+
+/// Valid 40-character hexadecimal commit SHA for testing
+const VALID_FULL_COMMIT_SHA: &str = "a1b2c3d4e5f6789012345678901234567890abcd";
+
+// ============================================================================
 // Basic Functionality Tests
 // ============================================================================
 
@@ -120,10 +127,9 @@ fn test_log_scan_run_info_with_short_commit_sha() {
 #[test]
 fn test_log_scan_run_info_with_full_length_commit_sha() {
     let scan_run = create_minimal_scan_run();
-    let commit_sha = "a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0"; // 40 chars
 
     // Function should handle full-length SHA
-    log_scan_run_info(&scan_run, commit_sha);
+    log_scan_run_info(&scan_run, VALID_FULL_COMMIT_SHA);
 }
 
 #[test]
@@ -522,11 +528,11 @@ fn test_log_scan_run_info_with_maximal_scan_run() {
     // Test with all fields populated with substantial data
     let scan_run =
         ScanRun::new("/very/long/path/to/repository/".to_string() + &"nested/".repeat(10))
-            .with_commit("a1b2c3d4e5f6789012345678901234567890abcd")
+            .with_commit(VALID_FULL_COMMIT_SHA)
             .with_branch("feature/very-long-branch-name-with-lots-of-details")
             .with_version("v1.2.3-beta.1+build.12345");
 
-    log_scan_run_info(&scan_run, "a1b2c3d4e5f6789012345678901234567890abcd");
+    log_scan_run_info(&scan_run, VALID_FULL_COMMIT_SHA);
 }
 
 // ============================================================================
