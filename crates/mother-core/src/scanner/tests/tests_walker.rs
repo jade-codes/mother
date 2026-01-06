@@ -209,7 +209,7 @@ fn test_compute_hash_nonexistent_file_returns_error() {
 fn test_compute_hash_large_file() {
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
     let file_path = temp_dir.path().join("large.rs");
-    // Create a large file content (10KB)
+    // Create a large file content (10,000 bytes)
     let large_content = "a".repeat(10_000);
     fs::write(&file_path, &large_content).expect("Failed to write large file");
 
@@ -231,9 +231,9 @@ fn test_compute_hash_large_file() {
 fn test_compute_hash_binary_content() {
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
     let file_path = temp_dir.path().join("binary.rs");
-    // Write binary content (including null bytes and non-ASCII)
-    let binary_content: Vec<u8> = vec![0, 1, 2, 255, 127, 128];
-    fs::write(&file_path, &binary_content).expect("Failed to write binary file");
+    // Write binary test data (including null bytes and non-ASCII)
+    let test_binary_data: Vec<u8> = vec![0, 1, 2, 255, 127, 128];
+    fs::write(&file_path, &test_binary_data).expect("Failed to write binary file");
 
     let discovered_file = crate::scanner::DiscoveredFile {
         path: file_path,
