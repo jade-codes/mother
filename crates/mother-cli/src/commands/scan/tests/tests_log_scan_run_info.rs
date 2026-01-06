@@ -280,7 +280,7 @@ fn test_log_scan_run_info_neither_commit_sha_nor_branch() {
 #[test]
 fn test_log_scan_run_info_commit_sha_with_letters_only() {
     let scan_run = create_minimal_scan_run();
-    let commit_sha = "abcdefghijklmnop";
+    let commit_sha = "abcdefabcdefabcd"; // Valid hex letters only
 
     log_scan_run_info(&scan_run, commit_sha);
 }
