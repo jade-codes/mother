@@ -1,7 +1,7 @@
 //! mother-cli: CLI for AST graph ingestion
 
 use clap::{Parser, Subcommand};
-use tracing_subscriber::{fmt, prelude::*, EnvFilter};
+use mother_cli::setup_logging;
 
 mod commands;
 mod types;
@@ -84,19 +84,6 @@ enum Commands {
         #[arg(long)]
         neo4j_password: String,
     },
-}
-
-fn setup_logging(verbose: bool) {
-    let filter = if verbose {
-        EnvFilter::new("debug")
-    } else {
-        EnvFilter::new("info")
-    };
-
-    tracing_subscriber::registry()
-        .with(fmt::layer())
-        .with(filter)
-        .init();
 }
 
 #[tokio::main]
