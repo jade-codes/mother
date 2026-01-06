@@ -65,6 +65,17 @@ fn create_test_repo_with_commit(dir: &Path, branch_name: &str) -> Result<git2::O
     Ok(commit_oid)
 }
 
+/// Helper function to assert that a branch is either "main" or "master"
+fn assert_default_branch(branch: Option<String>, message: &str) {
+    assert!(branch.is_some(), "{}", message);
+    let branch_name = branch.unwrap();
+    assert!(
+        branch_name == "main" || branch_name == "master",
+        "Expected branch to be main or master, got: {}",
+        branch_name
+    );
+}
+
 #[test]
 fn test_with_git_info_valid_repo() {
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
@@ -83,13 +94,7 @@ fn test_with_git_info_valid_repo() {
     );
 
     // Branch name might be "master" or "main" depending on git version/config
-    assert!(scan.branch.is_some(), "branch should be populated");
-    let branch = scan.branch.unwrap();
-    assert!(
-        branch == "main" || branch == "master",
-        "branch should be main or master, got: {}",
-        branch
-    );
+    assert_default_branch(scan.branch, "branch should be populated");
 }
 
 #[test]
