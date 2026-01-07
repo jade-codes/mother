@@ -1,6 +1,7 @@
 //! Tests for build_symbol_lookup_table function
 
-use super::super::{build_symbol_lookup_table, SymbolInfo};
+use super::super::build_symbol_lookup_table;
+use crate::commands::scan::SymbolInfo;
 use mother_core::scanner::Language;
 
 #[test]

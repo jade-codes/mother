@@ -81,7 +81,9 @@ async fn process_symbol_references(
 }
 
 /// Build a lookup table from file path to symbols in that file
-fn build_symbol_lookup_table(symbols: &[SymbolInfo]) -> HashMap<String, Vec<(String, u32, u32)>> {
+pub(crate) fn build_symbol_lookup_table(
+    symbols: &[SymbolInfo],
+) -> HashMap<String, Vec<(String, u32, u32)>> {
     let mut symbols_by_file: HashMap<String, Vec<(String, u32, u32)>> = HashMap::new();
 
     for sym in symbols {
@@ -121,7 +123,7 @@ async fn create_reference_edges(
 }
 
 /// Find the symbol that contains a reference location
-fn find_containing_symbol(
+pub(crate) fn find_containing_symbol(
     reference: &mother_core::lsp::LspReference,
     symbols_by_file: &HashMap<String, Vec<(String, u32, u32)>>,
 ) -> Option<String> {
